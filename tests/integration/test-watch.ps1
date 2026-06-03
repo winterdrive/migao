@@ -2,13 +2,12 @@
 #
 # Manual UI integration test for migao-watch hotkey behaviour.
 #
-# Requirements:
-#   - Run from a STANDALONE PowerShell window (not VS Code integrated terminal)
-#   - Windows desktop session (no headless / CI)
+# IMPORTANT: invoke via Claude Code's PowerShell tool, NOT from Windows Terminal.
+# Windows Terminal intercepts child console creation (MainWindowHandle stays 0).
+# Claude Code's extension-host context produces real conhost windows.
+# See .claude/skills/verifier-watch.md for the full runbook.
 #
-# Usage (from repo root):
-#   .\tests\integration\test-watch.ps1
-#
+# Usage: ask Claude Code "run the migao-watch integration test"
 # Exit code: 0 = all passed, 1 = build failed / one or more tests failed.
 
 Set-StrictMode -Version Latest
@@ -36,27 +35,49 @@ function Assert-Clip {
 
 Add-Type -TypeDefinition @"
 using System;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
+
 public class WinApi {
     [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int n);
+    [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+
+    public delegate bool EnumWindowsProc(IntPtr hwnd, IntPtr lp);
+    [DllImport("user32.dll")] public static extern bool EnumWindows(EnumWindowsProc cb, IntPtr lp);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern int GetClassName(IntPtr hwnd, StringBuilder sb, int max);
+
+    // Collect all visible top-level windows whose class matches any of the given names.
+    public static List<IntPtr> FindWindowsByClass(string[] classNames) {
+        var result = new List<IntPtr>();
+        EnumWindows((hwnd, lp) => {
+            if (!IsWindowVisible(hwnd)) return true;
+            var sb = new StringBuilder(256);
+            GetClassName(hwnd, sb, sb.Capacity);
+            var cls = sb.ToString();
+            foreach (var c in classNames)
+                if (cls == c) { result.Add(hwnd); break; }
+            return true;
+        }, IntPtr.Zero);
+        return result;
+    }
 }
 "@ -ErrorAction SilentlyContinue
 
-function Wait-ForWindow {
-    param([System.Diagnostics.Process]$Proc, [int]$TimeoutMs = 15000)
+$TerminalClasses = @("CASCADIA_HOSTING_WINDOW_CLASS", "ConsoleWindowClass")
+
+function Wait-ForNewTerminalWindow {
+    param([IntPtr[]]$Before, [int]$TimeoutMs = 10000)
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     while ($sw.ElapsedMilliseconds -lt $TimeoutMs) {
-        $p = Get-Process -Id $Proc.Id -ErrorAction SilentlyContinue
-        if ($p -and $p.MainWindowHandle -ne [IntPtr]::Zero) {
-            return $p.MainWindowHandle
-        }
+        $current = [WinApi]::FindWindowsByClass($TerminalClasses)
+        $new = $current | Where-Object { $_ -notin $Before }
+        if ($new) { return $new[0] }
         Start-Sleep -Milliseconds 300
     }
-    throw @"
-Timeout: '$($Proc.ProcessName)' (PID $($Proc.Id)) never got a window handle.
-Run this script from a standalone PowerShell window, not from VS Code's integrated terminal.
-"@
+    throw "Timeout: no new terminal window appeared within ${TimeoutMs}ms."
 }
 
 function Set-WindowFocus([IntPtr]$Handle) {
@@ -72,7 +93,7 @@ function Invoke-HotkeyTest {
 
     Set-WindowFocus $Handle
 
-    # Sentinel so we can detect if the hotkey never fired
+    # Sentinel — lets us detect if the hotkey never fired
     Set-Clipboard -Value "__NOT_REPLACED__"
 
     $wsh = New-Object -ComObject WScript.Shell
@@ -84,6 +105,17 @@ function Invoke-HotkeyTest {
     Start-Sleep -Milliseconds 1500
 
     return (Get-Clipboard)
+}
+
+function Wait-ForProcessWindow {
+    param([System.Diagnostics.Process]$Proc, [int]$TimeoutMs = 10000)
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($sw.ElapsedMilliseconds -lt $TimeoutMs) {
+        $Proc.Refresh()
+        if ($Proc.MainWindowHandle -ne [IntPtr]::Zero) { return $Proc.MainWindowHandle }
+        Start-Sleep -Milliseconds 300
+    }
+    throw "Timeout: '$($Proc.ProcessName)' (PID $($Proc.Id)) never got a window handle."
 }
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -117,7 +149,7 @@ Get-Process migao-watch -ErrorAction SilentlyContinue | Stop-Process -Force
 Start-Sleep -Milliseconds 500
 
 $daemon = Start-Process $binaryPath -PassThru
-Start-Sleep -Milliseconds 2000   # wait for hotkey registration
+Start-Sleep -Milliseconds 2000
 
 if (-not (Get-Process -Id $daemon.Id -ErrorAction SilentlyContinue)) {
     Write-Host "  failed to start migao-watch" -ForegroundColor Red
@@ -125,21 +157,30 @@ if (-not (Get-Process -Id $daemon.Id -ErrorAction SilentlyContinue)) {
 }
 Write-Host "  daemon running (PID $($daemon.Id))" -ForegroundColor Green
 
-# ── Test 1: terminal (conhost PowerShell) ─────────────────────────────────────
+# ── Test 1: terminal ──────────────────────────────────────────────────────────
+#
+# Snapshot existing terminal windows, open a new one via `wt --window new`,
+# then find the new HWND by class name (works for both CASCADIA and ConsoleWindowClass).
 
 Write-Host ""
-Write-Host "Test 1 — terminal (conhost PowerShell)" -ForegroundColor Cyan
+Write-Host "Test 1 — terminal (Windows Terminal / conhost)" -ForegroundColor Cyan
 
-$psProc = Start-Process powershell.exe `
-    -ArgumentList "-NoExit","-NoProfile" `
-    -WindowStyle Normal `
-    -PassThru
+$beforeHandles = [WinApi]::FindWindowsByClass($TerminalClasses) | ForEach-Object { $_ }
+
+# --window new forces a separate WT window instead of a new tab in the current window
+Start-Process wt.exe -ArgumentList "--window","new","powershell","-NoExit","-NoProfile"
+
 try {
-    $hwnd  = Wait-ForWindow $psProc
-    $clip  = Invoke-HotkeyTest -Handle $hwnd -Input "su3cl3"
+    $hwnd = Wait-ForNewTerminalWindow -Before $beforeHandles
+    Write-Host "  found terminal window: $hwnd" -ForegroundColor DarkGray
+    $clip = Invoke-HotkeyTest -Handle $hwnd -Input "su3cl3"
     Assert-Clip "su3cl3 → 你好  (ctrl_x path — text replaced, not appended)" $clip "你好"
 } finally {
-    Stop-Process -Id $psProc.Id -Force -ErrorAction SilentlyContinue
+    # Close the new WT window
+    $newWT = Get-Process WindowsTerminal -ErrorAction SilentlyContinue |
+             Where-Object { $_.MainWindowHandle -eq $hwnd } |
+             Select-Object -First 1
+    if ($newWT) { Stop-Process -Id $newWT.Id -Force -ErrorAction SilentlyContinue }
     Start-Sleep -Milliseconds 400
 }
 
@@ -150,8 +191,8 @@ Write-Host "Test 2 — non-terminal (Notepad)" -ForegroundColor Cyan
 
 $npProc = Start-Process notepad -WindowStyle Normal -PassThru
 try {
-    $hwnd  = Wait-ForWindow $npProc
-    $clip  = Invoke-HotkeyTest -Handle $hwnd -Input "su3cl3"
+    $hwnd = Wait-ForProcessWindow $npProc
+    $clip = Invoke-HotkeyTest -Handle $hwnd -Input "su3cl3"
     Assert-Clip "su3cl3 → 你好  (ctrl_c path — undo stack intact)" $clip "你好"
 } finally {
     Stop-Process -Id $npProc.Id -Force -ErrorAction SilentlyContinue
