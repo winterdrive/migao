@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://winterdrive.github.io/migao/sitemap.xml

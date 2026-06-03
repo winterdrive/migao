@@ -1,0 +1,40 @@
+[package]
+name = "migao"
+version = "0.4.8"
+edition = "2021"
+description = "IME garbled text recovery — 翻譯米糕"
+license = "MIT AND Apache-2.0"
+repository = "https://github.com/winterdrive/migao"
+keywords = ["ime", "bopomofo", "zhuyin", "input-method", "cli"]
+categories = ["command-line-utilities", "text-processing"]
+readme = "README.md"
+exclude = ["data/", "scripts/", "docs/"]
+
+[[bin]]
+name = "migao"
+path = "src/main.rs"
+
+[[bin]]
+name = "migao-watch"
+path = "src/bin/watch.rs"
+
+[lib]
+name = "migao"
+path = "src/lib.rs"
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+opt-level = "z"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+
+arboard = "3"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "wingdi", "winbase", "winnt", "synchapi", "consoleapi", "wincon", "processthreadsapi"] }
+tray-icon = { version = "0.24.0", default-features = false }
+winreg = "0.56.0"
+image = { version = "0.25", default-features = false, features = ["png"] }

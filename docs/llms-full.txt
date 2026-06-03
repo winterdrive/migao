@@ -1,0 +1,81 @@
+# Migao Full Context
+
+Migao is an open-source Rust tool for recovering text typed with the wrong input method.
+
+Repository: https://github.com/winterdrive/migao
+
+## Product
+
+Migao focuses on IME garbled text recovery for Traditional Chinese Bopomofo / Zhuyin. The common Windows workflow is:
+
+1. Type text while the wrong IME is active, producing garbled key text such as `su3cl3`.
+2. Select the garbled text, often with `Ctrl+A`.
+3. Press `Ctrl+Alt+R`.
+4. `migao-watch` replaces the selected text with the recovered Chinese text, such as `你好`.
+
+The CLI can also recover text:
+
+```sh
+migao fix "su3cl3"
+migao fix --top 3 "su3cl3"
+migao list
+```
+
+## Install
+
+Windows one-liner:
+
+```powershell
+irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex
+```
+
+Uninstall:
+
+```powershell
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Uninstall
+```
+
+The installer downloads the latest Windows release, installs `migao.exe`, `migao-watch.exe`, and `migao.ico` under `%USERPROFILE%\.local\bin`, creates a Start Menu shortcut, optionally registers launch at login, and starts the tray app.
+
+## Supported IMEs
+
+| Identifier | Aliases | Layout |
+|------------|---------|--------|
+| `bopomofo-daqian` | `zhuyin`, `注音` | Standard Daqian Bopomofo keyboard |
+| `pinyin` | `拼音` | Full pinyin QWERTY |
+
+## Architecture
+
+- `src/main.rs` is the CLI entry point.
+- `src/lib.rs` exposes `recover()` and `recover_top_n()`.
+- `src/bin/watch.rs` is the Windows tray daemon with global hotkey handling.
+- `src/ime/` contains keyboard layout segmentation.
+- `src/rules/` contains IME recovery rules.
+- `src/viterbi.rs` ranks Chinese candidates using dictionary and bigram data.
+- `data/` contains embedded dictionary inputs.
+- `scripts/accuracy_gate.py` is the regression accuracy check.
+
+## Development checks
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+python scripts/accuracy_gate.py --threshold 90
+```
+
+## Release
+
+Tags matching `v*` trigger `.github/workflows/release.yml`.
+
+Release assets:
+
+- `migao-windows-x64.zip`
+- `migao-macos-arm64.tar.gz`
+- `migao-linux-x64.tar.gz`
+
+## License
+
+The project is licensed as `MIT AND Apache-2.0`.
+
+The Apache 2.0 component covers the RIME dictionary data embedded in the binary.

@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="翻譯米糕：忘了切換輸入法，打出注音亂碼？選取文字，按 Ctrl+Alt+R，一秒還原正確中文。">
+  <link rel="canonical" href="https://winterdrive.github.io/migao/">
+  <title>翻譯米糕 Migao — 注音亂碼一秒還原</title>
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-T8HGL7CBP7"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-T8HGL7CBP7');
+  </script>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17212b;
+      --muted: #5b6875;
+      --line: #d9e0e7;
+      --panel: #f6f8fa;
+      --accent: #0f766e;
+      --warm: #b45309;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, "Noto Sans TC", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: #ffffff;
+      line-height: 1.6;
+    }
+    header, main, footer {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+    header {
+      min-height: 92vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(220px, 0.8fr);
+      align-items: center;
+      gap: 48px;
+      padding: 56px 0 40px;
+    }
+    nav {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(1080px, calc(100% - 32px));
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    nav a, .links a, footer a { color: var(--accent); text-decoration: none; }
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(48px, 8vw, 96px);
+      line-height: 0.95;
+      letter-spacing: -1px;
+    }
+    .slogan {
+      margin: 0 0 10px;
+      font-size: clamp(18px, 3vw, 26px);
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .subtitle {
+      margin: 0 0 28px;
+      max-width: 560px;
+      font-size: 16px;
+      color: var(--muted);
+    }
+    .commands {
+      display: grid;
+      gap: 10px;
+      margin: 28px 0;
+    }
+    code, pre {
+      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+    }
+    pre {
+      margin: 0;
+      padding: 14px 16px;
+      overflow-x: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      font-size: 14px;
+    }
+    .logo {
+      width: min(340px, 100%);
+      aspect-ratio: 1;
+      object-fit: contain;
+      justify-self: center;
+    }
+    section {
+      padding: 52px 0;
+      border-top: 1px solid var(--line);
+    }
+    h2 {
+      margin: 0 0 18px;
+      font-size: 28px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+      background: #fff;
+    }
+    .card h3 { margin: 0 0 8px; font-size: 17px; }
+    .card p { margin: 0; color: var(--muted); font-size: 15px; }
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      counter-reset: step;
+    }
+    .step {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      border-left: 3px solid var(--accent);
+      background: var(--panel);
+      padding: 16px;
+      min-height: 100px;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    .step::before {
+      counter-increment: step;
+      content: counter(step);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .links { display: flex; gap: 20px; flex-wrap: wrap; font-size: 15px; }
+    footer {
+      padding: 32px 0;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    @media (max-width: 1024px) {
+      .workflow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 640px) {
+      header { grid-template-columns: 1fr; }
+      .logo { display: none; }
+      .grid, .workflow { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <strong>翻譯米糕 Migao</strong>
+    <span>
+      <a href="https://github.com/winterdrive/migao">GitHub</a> ·
+      <a href="README.zh-TW.md">繁體中文 README</a> ·
+      <a href="https://github.com/winterdrive/migao/blob/main/README.md">English</a>
+    </span>
+  </nav>
+
+  <header>
+    <div>
+      <h1>翻譯米糕</h1>
+      <p class="slogan">忘了切換注音？Ctrl+Alt+R 一秒還原。</p>
+      <p class="subtitle">在任何 Windows 應用程式中，選取打錯輸入法的亂碼，按快捷鍵，就地替換為正確繁體中文。不需要重打，不需要打開終端機。</p>
+      <div class="commands">
+        <pre><code>irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex</code></pre>
+        <pre><code>migao fix "su3cl3"  # → 你好</code></pre>
+      </div>
+      <div class="links">
+        <a href="https://github.com/winterdrive/migao/releases/latest">下載最新版本</a>
+        <a href="https://github.com/winterdrive/migao">GitHub</a>
+        <a href="README.zh-TW.md">完整中文說明</a>
+      </div>
+    </div>
+    <img class="logo" src="assets/migao-logo.png" alt="翻譯米糕 Migao logo">
+  </header>
+
+  <main>
+    <section>
+      <h2>Windows 日常使用流程</h2>
+      <div class="workflow">
+        <div class="step">從開始選單啟動 Migao Watch，或開機自動啟動。系統匣出現米糕圖示代表運行中。</div>
+        <div class="step">正常打字。如果忘記切換輸入法，打出了一串注音亂碼（例如 su3cl3）。</div>
+        <div class="step">Ctrl+A 選取，再按 Ctrl+Alt+R，亂碼就地替換為「你好」。</div>
+        <div class="step">3 秒內再按 Ctrl+Alt+R 可循環切換備選答案，直到選到正確的字。</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>包含什麼</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>系統匣熱鍵</h3>
+          <p>migao-watch 常駐背景，不需要開終端機，在任何應用程式（LINE、瀏覽器、Word）都有效。</p>
+        </div>
+        <div class="card">
+          <h3>CLI 工具</h3>
+          <p>直接執行修正、管道模式、列出支援的輸入法、顯示多個候選答案。</p>
+        </div>
+        <div class="card">
+          <h3>語言模型</h3>
+          <p>47 萬詞條字典 + Bigram 語言模型，用 Viterbi 演算法選出最符合的繁體中文詞序列。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>支援的輸入法</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>bopomofo-daqian</h3>
+          <p>大千標準注音鍵盤。別名：zhuyin、注音。台灣最常見的注音輸入法配置。</p>
+        </div>
+        <div class="card">
+          <h3>pinyin</h3>
+          <p>全拼 QWERTY 鍵盤。適合簡體中文用戶或習慣拼音輸入的使用者。</p>
+        </div>
+        <div class="card">
+          <h3>即將支援</h3>
+          <p>韓文 두벌식、可設定熱鍵、個人化選字記憶。詳見 <a href="https://github.com/winterdrive/migao/blob/main/ROADMAP.md">ROADMAP</a>。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    MIT AND Apache-2.0 ·
+    <a href="https://github.com/winterdrive/migao">winterdrive/migao</a> ·
+    <a href="https://github.com/winterdrive/migao/releases">Release 紀錄</a>
+  </footer>
+</body>
+</html>

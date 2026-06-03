@@ -1,0 +1,20 @@
+# Supplement: polyphonic compound corrections that pypinyin gets wrong.
+# Format: Bopomofo<TAB>word<TAB>frequency
+# These entries are merged with bopomofo.tsv at load time.
+# Maintained manually — add entries where pypinyin assigns the wrong tone to 為 etc.
+
+# 為 (ㄨㄟˊ wéi) — "to be / to become / to act as"
+# pypinyin always returns ㄨㄟˋ for all 為 compounds; correct ones listed here.
+ㄔㄥˊㄨㄟˊ	成為	100000
+ㄧㄡˇㄔㄥˊㄨㄟˊ	有成為	100000
+ㄧˇㄋㄧˇ	以你	100000
+ㄒㄧㄚˋㄧˊㄅㄨˋ	下一步	100000
+ㄧˊㄘˋ	一次	100000
+ㄕˋㄕˋㄎㄢˋ	試試看	100000
+ㄗˋㄕˋㄕˋㄎㄢˋ	字試試看	100000
+ㄖㄣˋㄨㄟˊ	認為	100000
+ㄒㄧㄥˊㄨㄟˊ	行為	100000
+ㄗㄨㄛˋㄨㄟˊ	作為	100000
+ㄧˇㄨㄟˊ	以為	100000
+ㄨㄟˊ˙ㄌㄜ	為了	50000
+ㄨㄟˊㄖㄣˊ	為人	50000

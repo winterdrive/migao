@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            archive: migao-windows-x64.zip
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            archive: migao-macos-arm64.tar.gz
+          - target: x86_64-apple-darwin
+            os: macos-15-intel
+            archive: migao-macos-x64.tar.gz
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            archive: migao-linux-x64.tar.gz
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install musl tools
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/migao.exe" package/
+          Copy-Item "target/${{ matrix.target }}/release/migao-watch.exe" package/
+          Copy-Item "assets/migao.ico" package/
+          Compress-Archive `
+            -Path "package/*" `
+            -DestinationPath "${{ matrix.archive }}"
+
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          tar czf "${{ matrix.archive }}" \
+            -C "target/${{ matrix.target }}/release" migao
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.archive }}
+          path: ${{ matrix.archive }}
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: false
+          body: |
+            ## 安裝方式
+
+            ### Windows（推薦）
+            在 PowerShell 中執行一鍵安裝：
+            ```powershell
+            irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex
+            ```
+            解除安裝：
+            ```powershell
+            & ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Uninstall
+            ```
+            或手動下載 `migao-windows-x64.zip`，解壓後將 exe 放到 PATH 目錄。
+            安裝後可從開始選單 `Migao > Migao Watch` 手動啟動，不需要保持 PowerShell 視窗開啟。
+
+            ### macOS（Apple Silicon）
+            ```bash
+            curl -L https://github.com/winterdrive/migao/releases/latest/download/migao-macos-arm64.tar.gz | tar xz
+            sudo mv migao /usr/local/bin/
+            ```
+
+            ### macOS（Intel）
+            ```bash
+            curl -L https://github.com/winterdrive/migao/releases/latest/download/migao-macos-x64.tar.gz | tar xz
+            sudo mv migao /usr/local/bin/
+            ```
+
+            ### Linux
+            ```bash
+            curl -L https://github.com/winterdrive/migao/releases/latest/download/migao-linux-x64.tar.gz | tar xz
+            sudo mv migao /usr/local/bin/
+            ```
+
+            ## 使用方式
+
+            ### CLI
+            ```
+            migao fix "su3cl3"         # → 你好
+            migao fix "5j/ eji6"       # → 中國
+            echo "su3cl3" | migao fix  # pipe 模式
+            migao list                 # 列出支援的 IME
+            ```
+
+            ### migao-watch（Windows 常駐背景程式）
+            安裝後自動啟動，也可從開始選單 `Migao > Migao Watch` 手動啟動。系統匣出現綠色圓圈圖示代表運行中。
+
+            **使用流程：**
+            1. 打出亂碼（例如 `su3cl3`）
+            2. Ctrl+A 選取
+            3. Ctrl+Alt+R → 自動修正為正確中文
+            4. 3 秒內再按 Ctrl+Alt+R → 循環切換備選答案
+
+            **系統匣右鍵選單：** Pause / Resume · Launch at Login · Exit
+          files: |
+            migao-windows-x64.zip
+            migao-macos-arm64.tar.gz
+            migao-macos-x64.tar.gz
+            migao-linux-x64.tar.gz

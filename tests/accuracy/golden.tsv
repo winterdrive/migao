@@ -1,0 +1,38 @@
+# Kotori accuracy golden set
+# Format: garbled_input<TAB>expected_output
+# Source: extracted from unit tests in src/rules/bopomofo.rs
+# Run: python scripts/accuracy_gate.py --threshold 90
+
+# ── Basic ────────────────────────────────────────────────────────────────────
+su3cl3	你好
+5j/ eji6	中國
+su3cl3!	你好!
+5k4g4SSOTa87?	這是SSOT嗎?
+
+# ── Mass regression set ──────────────────────────────────────────────────────
+rup wu0 wu0 fu4cp3cl3	今天天氣很好
+ji31j45 2l4yp3ak7104	我不知道怎麼辦
+5k4ek4jp4wu6cp3zj4y86	這個問題很複雜
+au/6wu0 ji3ap7d9 cjo4	明天我們開會
+ji3rm,62k65k4u;4yji41u3rul4cl3	我覺得這樣做比較好
+vu,4vu,4su32k71; a;6	謝謝你的幫忙
+1j4cl3u4n 283bl3su3	不好意思打擾你
+2u04sl3wj b062; 2ul4xk7	電腦突然當掉了
+ji3vm ul4e/42ji g6ru0	我需要更多時間
+su3dk3u3y94gji u 1u04a87	你可以再說一遍嗎
+5k4ek4vu;3z83cp3u.3tj;4u4	這個想法很有創意
+5k4ek7z;4zj4xj4187	這個放附錄吧
+su31j4rm,62k75k4cp3u.3jp4wu6a87	你不覺得這很有問題嗎
+
+# ── Pinyin (--ime pinyin) ────────────────────────────────────────────────────
+# Note: run with `kotori fix --ime pinyin <input>`; these use the pinyin rule.
+# Stored here for documentation; accuracy_gate.py tests bopomofo-daqian only.
+
+# ── Longer sentences ─────────────────────────────────────────────────────────
+ji3vu;35 2l4vu84u61j4ul4yji4gp6ak7?	我想知道下一步要做什麼?
+cp3cl3，vu84u61j4g4gp6ak7?	很好，下一步是什麼?
+ji3vu j;4su3dk3u3u6h4g/ t/6cp32ji so4bj/6，b06c.4b;4ji3283u6h4y4g4g4d04	我希望你可以一次生成很多內容，然後讓我打一次字試試看
+cp3cl3，5k4ek7u.3t/6jo620 m06hk4g42k7u4cj06a87?	很好，這個有成為單元測試的一環嗎?
+ji3vu;3rup wu0 fm4w961o328 cji3tk	我想今天去臺北搭火車
+s84nji3u3su3g4yp3ak7e932k7?	那所以你是怎麼改的?
+ao3u vu;4ji32. ao6jp4wu6，	每一項我都沒問題，

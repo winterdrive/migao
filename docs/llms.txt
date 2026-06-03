@@ -1,0 +1,25 @@
+# Migao
+
+Migao is a Rust CLI and Windows tray app that recovers Traditional Chinese text typed with the wrong IME.
+
+Primary links:
+
+- Project README: https://github.com/winterdrive/migao
+- Traditional Chinese README: https://raw.githubusercontent.com/winterdrive/migao/main/docs/README.zh-TW.md
+- Simplified Chinese README: https://raw.githubusercontent.com/winterdrive/migao/main/docs/README.zh-CN.md
+- Japanese README: https://raw.githubusercontent.com/winterdrive/migao/main/docs/README.ja.md
+- Korean README: https://raw.githubusercontent.com/winterdrive/migao/main/docs/README.ko.md
+- Full LLM context: https://raw.githubusercontent.com/winterdrive/migao/main/docs/llms-full.txt
+
+Core workflow:
+
+1. Launch Migao Watch on Windows.
+2. Select garbled text, often with Ctrl+A.
+3. Press Ctrl+Alt+R.
+4. Migao replaces the selected text with recovered Chinese.
+
+Install:
+
+```powershell
+irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex
+```
