@@ -1,6 +1,6 @@
 [package]
 name = "migao"
-version = "0.4.8"
+version = "0.4.9"
 edition = "2021"
 description = "IME garbled text recovery — 翻譯米糕"
 license = "MIT AND Apache-2.0"

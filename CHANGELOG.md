@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-06-04
+
+### Fixed
+
+- **PowerShell hotkey appending bug** — in terminals (Windows Terminal / conhost), `Ctrl+C` copies the selected text but clears the selection; `Ctrl+V` then appended the correction instead of replacing. `migao-watch` now detects the foreground window class at hotkey time and uses `Ctrl+X` (cut) in terminal contexts (`CASCADIA_HOSTING_WINDOW_CLASS` / `ConsoleWindowClass`) so the original text is removed before pasting the correction. In all other applications (text editors, browsers, etc.) the original `Ctrl+C` path is preserved, keeping the undo stack clean.
+
+### Added
+
+- UI integration test for the hotkey replacement behaviour — `tests/integration/test-watch.ps1` covering terminal (ctrl_x path) and non-terminal (ctrl_c path) scenarios; run via Claude Code per `.claude/skills/verifier-watch.md`
+
 ## [0.4.8] - 2026-06-04
 
 ### Fixed
