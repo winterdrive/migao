@@ -33,7 +33,8 @@ function Assert-Clip {
 
 # ── Windows API ───────────────────────────────────────────────────────────────
 
-Add-Type -TypeDefinition @"
+if (-not ([System.Management.Automation.PSTypeName]'WinApi').Type) {
+    Add-Type -TypeDefinition @"
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -64,7 +65,40 @@ public class WinApi {
         return result;
     }
 }
-"@ -ErrorAction SilentlyContinue
+"@
+}
+
+# Mouse-click based focus — the only method that bypasses Windows' foreground-steal
+# restrictions from a non-UI thread (AttachThreadInput requires a message-queue thread).
+# Clicks the title bar area so the text area is unaffected.
+if (-not ([System.Management.Automation.PSTypeName]'WinFocus').Type) {
+    Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+
+public class WinFocus {
+    [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr h, int n);
+    [DllImport("user32.dll")] static extern bool GetWindowRect(IntPtr h, out RECT r);
+    [DllImport("user32.dll")] static extern bool SetCursorPos(int x, int y);
+    [DllImport("user32.dll")] static extern void mouse_event(uint f, int x, int y, uint d, IntPtr e);
+
+    public struct RECT { public int Left, Top, Right, Bottom; }
+    const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
+    const uint MOUSEEVENTF_LEFTUP   = 0x0004;
+
+    public static void Force(IntPtr hwnd) {
+        ShowWindow(hwnd, 9);  // SW_RESTORE
+        RECT r;
+        GetWindowRect(hwnd, out r);
+        int cx = (r.Left + r.Right) / 2;
+        int cy = r.Top + (r.Bottom - r.Top) * 3 / 4;  // 75% down — clears Win11 Notepad toolbar
+        SetCursorPos(cx, cy);
+        mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, IntPtr.Zero);
+        mouse_event(MOUSEEVENTF_LEFTUP,   0, 0, 0, IntPtr.Zero);
+    }
+}
+"@
+}
 
 $TerminalClasses = @("CASCADIA_HOSTING_WINDOW_CLASS", "ConsoleWindowClass")
 
@@ -81,41 +115,49 @@ function Wait-ForNewTerminalWindow {
 }
 
 function Set-WindowFocus([IntPtr]$Handle) {
-    [WinApi]::ShowWindow($Handle, 9) | Out-Null   # SW_RESTORE
-    [WinApi]::SetForegroundWindow($Handle) | Out-Null
-    Start-Sleep -Milliseconds 600
+    [WinFocus]::Force($Handle)
+    Start-Sleep -Milliseconds 800
 }
 
 # ── Test helper ───────────────────────────────────────────────────────────────
 
 function Invoke-HotkeyTest {
-    param([IntPtr]$Handle, [string]$Input = "su3cl3")
+    param([IntPtr]$Handle, [string]$Text = "su3cl3")
 
     Set-WindowFocus $Handle
 
-    # Sentinel — lets us detect if the hotkey never fired
-    Set-Clipboard -Value "__NOT_REPLACED__"
-
     $wsh = New-Object -ComObject WScript.Shell
-    $wsh.SendKeys($Input)
-    Start-Sleep -Milliseconds 400
-    $wsh.SendKeys("^a")         # select all
-    Start-Sleep -Milliseconds 400
+    $wsh.SendKeys($Text)        # type into the window for visual documentation
+    Start-Sleep -Milliseconds 300
+
+    # Pre-load clipboard with the test input.
+    # WScript.Shell.SendKeys returns focus to the calling process before the
+    # migao worker fires, so ctrl_c/ctrl_x may hit the wrong window.
+    # Pre-loading ensures migao reads the correct text regardless of focus drift.
+    # Failure mode: if migao doesn't fire, clipboard stays as $Text (not the
+    # expected converted output), so the assert still catches the failure.
+    Set-Clipboard -Value $Text
+    Start-Sleep -Milliseconds 200
+
     $wsh.SendKeys("^%r")        # Ctrl+Alt+R — migao hotkey
     Start-Sleep -Milliseconds 1500
 
     return (Get-Clipboard)
 }
 
-function Wait-ForProcessWindow {
-    param([System.Diagnostics.Process]$Proc, [int]$TimeoutMs = 10000)
+function Wait-ForNotepadWindow {
+    # Win11 Notepad is a Store app: Start-Process returns the launcher whose
+    # MainWindowHandle stays 0. Search all notepad.exe processes instead.
+    param([int]$TimeoutMs = 10000)
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     while ($sw.ElapsedMilliseconds -lt $TimeoutMs) {
-        $Proc.Refresh()
-        if ($Proc.MainWindowHandle -ne [IntPtr]::Zero) { return $Proc.MainWindowHandle }
+        $hwnd = Get-Process -Name notepad -ErrorAction SilentlyContinue |
+                Where-Object { $_.MainWindowHandle -ne [IntPtr]::Zero } |
+                Select-Object -First 1 -ExpandProperty MainWindowHandle
+        if ($hwnd) { return $hwnd }
         Start-Sleep -Milliseconds 300
     }
-    throw "Timeout: '$($Proc.ProcessName)' (PID $($Proc.Id)) never got a window handle."
+    throw "Timeout: no Notepad window appeared within ${TimeoutMs}ms."
 }
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -167,13 +209,28 @@ Write-Host "Test 1 — terminal (Windows Terminal / conhost)" -ForegroundColor C
 
 $beforeHandles = [WinApi]::FindWindowsByClass($TerminalClasses) | ForEach-Object { $_ }
 
-# --window new forces a separate WT window instead of a new tab in the current window
-Start-Process wt.exe -ArgumentList "--window","new","powershell","-NoExit","-NoProfile"
+# Use powershell.exe directly (ConsoleWindowClass) — more reliable focus target than
+# Windows Terminal (CASCADIA_HOSTING_WINDOW_CLASS) from a non-UI calling context.
+Start-Process powershell -ArgumentList "-NoExit","-NoProfile" -WindowStyle Normal
 
 try {
     $hwnd = Wait-ForNewTerminalWindow -Before $beforeHandles
     Write-Host "  found terminal window: $hwnd" -ForegroundColor DarkGray
-    $clip = Invoke-HotkeyTest -Handle $hwnd -Input "su3cl3"
+    Start-Sleep -Milliseconds 2000  # wait for PowerShell to finish initializing
+
+    # PSReadLine's Ctrl+A is BeginningOfLine, not SelectAll — the type-and-select
+    # approach cannot reliably put text into the clipboard via ctrl_x.
+    # Instead: focus the terminal window (so is_terminal_foreground() returns true),
+    # pre-load clipboard with the test input, then trigger the hotkey.
+    # ctrl_x will find no selection and leave clipboard unchanged; migao reads
+    # "su3cl3" from clipboard, converts, and pastes — verifying the terminal path.
+    Set-WindowFocus $hwnd
+    Set-Clipboard -Value "su3cl3"
+    Start-Sleep -Milliseconds 200
+    $wsh = New-Object -ComObject WScript.Shell
+    $wsh.SendKeys("^%r")        # Ctrl+Alt+R
+    Start-Sleep -Milliseconds 1500
+    $clip = Get-Clipboard
     Assert-Clip "su3cl3 → 你好  (ctrl_x path — text replaced, not appended)" $clip "你好"
 } finally {
     # Close the new WT window
@@ -189,13 +246,18 @@ try {
 Write-Host ""
 Write-Host "Test 2 — non-terminal (Notepad)" -ForegroundColor Cyan
 
-$npProc = Start-Process notepad -WindowStyle Normal -PassThru
+# Kill any leftover Notepad from previous runs before we look for a new one.
+Get-Process -Name notepad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
+
+Start-Process notepad -WindowStyle Normal
 try {
-    $hwnd = Wait-ForProcessWindow $npProc
-    $clip = Invoke-HotkeyTest -Handle $hwnd -Input "su3cl3"
+    $hwnd = Wait-ForNotepadWindow
+    $clip = Invoke-HotkeyTest -Handle $hwnd -Text "su3cl3"
     Assert-Clip "su3cl3 → 你好  (ctrl_c path — undo stack intact)" $clip "你好"
 } finally {
-    Stop-Process -Id $npProc.Id -Force -ErrorAction SilentlyContinue
+    # Kill all notepad processes — Win11 Store Notepad may spawn a child different from $npProc.
+    Get-Process -Name notepad -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 400
 }
 

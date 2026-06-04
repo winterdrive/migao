@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="翻譯米糕：忘了切換輸入法，打出注音亂碼？選取文字，按 Ctrl+Alt+R，一秒還原正確中文。">
-  <link rel="canonical" href="https://winterdrive.github.io/migao/">
-  <title>翻譯米糕 Migao — 注音亂碼一秒還原</title>
+  <meta name="description" content="Migao: typed the right keys but forgot to switch your IME? Select the garbled text, press Ctrl+Alt+R, and get the correct Traditional Chinese back instantly.">
+  <link rel="canonical" href="https://winterdrive.github.io/migao/en.html">
+  <title>Migao — Fix IME Garbled Text Instantly</title>
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-T8HGL7CBP7"></script>
   <script>
@@ -27,7 +27,7 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      font-family: Inter, "Noto Sans TC", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color: var(--ink);
       background: #ffffff;
       line-height: 1.6;
@@ -175,23 +175,23 @@
     <span>
       <a href="https://github.com/winterdrive/migao">GitHub</a> ·
       <a href="https://github.com/winterdrive/migao/blob/main/CHANGELOG.md">Changelog</a> ·
-      <a href="en.html">English</a>
+      <a href="index.html">繁體中文</a>
     </span>
   </nav>
 
   <header>
     <div>
-      <h1>翻譯米糕</h1>
-      <p class="slogan">忘了切換注音？Ctrl+Alt+R 一秒還原。</p>
-      <p class="subtitle">在任何 Windows 應用程式中，選取打錯輸入法的亂碼，按快捷鍵，就地替換為正確繁體中文。不需要重打，不需要打開終端機。</p>
+      <h1>Migao</h1>
+      <p class="slogan">Forgot to switch IME? One hotkey fixes it.</p>
+      <p class="subtitle">Select the garbled text in any Windows app, press Ctrl+Alt+R, and get the correct Traditional Chinese back — in-place, no retyping.</p>
       <div class="commands">
         <pre><code>irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex</code></pre>
         <pre><code>migao fix "su3cl3"  # → 你好</code></pre>
       </div>
       <div class="links">
-        <a href="https://github.com/winterdrive/migao/releases/latest">下載最新版本</a>
-        <a href="https://github.com/winterdrive/migao/blob/main/docs/README.zh-TW.md">繁體中文說明</a>
-        <a href="https://github.com/winterdrive/migao/stargazers">⭐ 在 GitHub 上給星</a>
+        <a href="https://github.com/winterdrive/migao/releases/latest">Download Latest</a>
+        <a href="https://github.com/winterdrive/migao/blob/main/README.md">Full README</a>
+        <a href="https://github.com/winterdrive/migao/stargazers">⭐ Star on GitHub</a>
       </div>
     </div>
     <img class="logo" src="assets/migao-logo.png" alt="翻譯米糕 Migao logo">
@@ -199,47 +199,47 @@
 
   <main>
     <section>
-      <h2>Windows 日常使用流程</h2>
+      <h2>How It Works</h2>
       <div class="workflow">
-        <div class="step">從開始選單啟動 Migao Watch，或開機自動啟動。系統匣出現米糕圖示代表運行中。</div>
-        <div class="step">正常打字。如果忘記切換輸入法，打出了一串注音亂碼（例如 su3cl3）。</div>
-        <div class="step">Ctrl+A 選取，再按 Ctrl+Alt+R，亂碼就地替換為「你好」。</div>
-        <div class="step">3 秒內再按 Ctrl+Alt+R 可循環切換備選答案，直到選到正確的字。</div>
+        <div class="step">Launch Migao Watch from the Start Menu, or let it start at login. The rice cake icon appears in the system tray.</div>
+        <div class="step">Type normally. If you forget to switch your IME, you get garbled text like su3cl3 instead of Chinese characters.</div>
+        <div class="step">Select the garbled text (Ctrl+A), then press Ctrl+Alt+R. It's replaced in-place with 你好.</div>
+        <div class="step">Press Ctrl+Alt+R again within 3 seconds to cycle through alternative candidates until you find the right one.</div>
       </div>
     </section>
 
     <section>
-      <h2>包含什麼</h2>
+      <h2>What's Included</h2>
       <div class="grid">
         <div class="card">
-          <h3>系統匣熱鍵</h3>
-          <p>migao-watch 常駐背景，不需要開終端機，在任何應用程式（LINE、瀏覽器、Word）都有效。</p>
+          <h3>System Tray Hotkey</h3>
+          <p>migao-watch runs silently in the background — no terminal needed. Works in any app: LINE, browser, Word, VS Code.</p>
         </div>
         <div class="card">
-          <h3>CLI 工具</h3>
-          <p>直接執行修正、管道模式、列出支援的輸入法、顯示多個候選答案。</p>
+          <h3>CLI Tool</h3>
+          <p>Direct correction, pipe mode, list supported IME layouts, show multiple candidates. Scriptable and cross-platform.</p>
         </div>
         <div class="card">
-          <h3>語言模型</h3>
-          <p>47 萬詞條字典 + Bigram 語言模型，用 Viterbi 演算法選出最符合的繁體中文詞序列。</p>
+          <h3>Language Model</h3>
+          <p>470 k-entry dictionary + bigram language model. Viterbi decoding picks the most natural Traditional Chinese word sequence.</p>
         </div>
       </div>
     </section>
 
     <section>
-      <h2>支援的輸入法</h2>
+      <h2>Supported IME Layouts</h2>
       <div class="grid">
         <div class="card">
           <h3>bopomofo-daqian</h3>
-          <p>大千標準注音鍵盤。別名：zhuyin、注音。台灣最常見的注音輸入法配置。</p>
+          <p>Standard Zhuyin (Bopomofo) keyboard layout. Aliases: <code>zhuyin</code>, <code>注音</code>. The most common layout in Taiwan.</p>
         </div>
         <div class="card">
           <h3>pinyin</h3>
-          <p>全拼 QWERTY 鍵盤。適合簡體中文用戶或習慣拼音輸入的使用者。</p>
+          <p>Full Pinyin on a standard QWERTY keyboard. Useful for Simplified Chinese users or anyone who types Pinyin.</p>
         </div>
         <div class="card">
-          <h3>即將支援</h3>
-          <p>韓文 두벌식、可設定熱鍵、個人化選字記憶。詳見 <a href="https://github.com/winterdrive/migao/blob/main/ROADMAP.md">ROADMAP</a>。</p>
+          <h3>Coming Soon</h3>
+          <p>Korean 두벌식, configurable hotkey, personalised candidate memory. See the <a href="https://github.com/winterdrive/migao/blob/main/ROADMAP.md">ROADMAP</a>.</p>
         </div>
       </div>
     </section>
@@ -248,7 +248,7 @@
   <footer>
     MIT AND Apache-2.0 ·
     <a href="https://github.com/winterdrive/migao">winterdrive/migao</a> ·
-    <a href="https://github.com/winterdrive/migao/releases">Release 紀錄</a>
+    <a href="https://github.com/winterdrive/migao/releases">Releases</a>
   </footer>
 </body>
 </html>

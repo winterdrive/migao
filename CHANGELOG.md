@@ -6,7 +6,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-06-04
+
+### Added
+
+- **Report Issue in tray menu** — right-clicking the system tray icon now includes a "Report Issue" item that opens `github.com/winterdrive/migao/issues/new` in the default browser
+- **English landing page** — `docs/en.html` mirrors the Chinese landing page with full English copy; language toggle in nav and hero on both pages
+- **Migao skill** — `skills/migao/SKILL.md` documents the CLI interface for AI agents and external tooling
+
+### Changed
+
+- **Landing page links overhauled** — nav now links GitHub · Changelog · language toggle; hero now links Download · README · ⭐ Star on GitHub; removed duplicate and raw-text links
+- **Project agent skills restructured** — development skills (`test-smoke`, `test-e2e`) moved to `.agents/skills/`; `.claude/` added to `.gitignore`
+
+### Fixed
+
+- **E2E test reliability** — `tests/integration/test-watch.ps1` now uses mouse-click focus (`WinFocus` via P/Invoke) and pre-loaded clipboard to avoid `WScript.Shell` focus-drift; Win11 Notepad window lookup no longer relies on launcher PID; `Add-Type` guarded against duplicate definitions across PowerShell sessions
 
 ## [0.4.9] - 2026-06-04
 

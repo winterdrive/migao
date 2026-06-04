@@ -1,3 +1,14 @@
 /target
 .vscode/
 scripts/cache/
+.idea/
+
+# Claude Code local config (never commit)
+.claude/
+
+# Project-agent skills (repo-owned skills only; use git add -f to promote a new one)
+.agents/skills/*
+!.agents/skills/test-smoke/
+!.agents/skills/test-smoke/**
+!.agents/skills/test-e2e/
+!.agents/skills/test-e2e/**
