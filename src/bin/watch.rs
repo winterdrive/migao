@@ -397,11 +397,12 @@ mod win {
         // ── Tray icon ────────────────────────────────────────────────────────
         let pause_item = MenuItem::new("Pause", true, None);
         let login_item = CheckMenuItem::new("Launch at Login", true, is_autostart_enabled(), None);
+        let update_item = MenuItem::new("Check for Updates", true, None);
         let report_item = MenuItem::new("Report Issue", true, None);
         let exit_item = MenuItem::new("Exit", true, None);
         let sep = PredefinedMenuItem::separator();
         let menu = Menu::new();
-        menu.append_items(&[&pause_item, &login_item, &report_item, &sep, &exit_item])
+        menu.append_items(&[&pause_item, &login_item, &update_item, &report_item, &sep, &exit_item])
             .expect("menu setup failed");
         let tray: TrayIcon = TrayIconBuilder::new()
             .with_icon(make_icon(IconState::Active))
@@ -412,6 +413,7 @@ mod win {
 
         let pause_id = pause_item.id().clone();
         let login_id = login_item.id().clone();
+        let update_id = update_item.id().clone();
         let report_id = report_item.id().clone();
         let exit_id = exit_item.id().clone();
 
@@ -474,6 +476,11 @@ mod win {
                 while let Ok(event) = MenuEvent::receiver().try_recv() {
                     if event.id == exit_id {
                         should_quit = true;
+                    } else if event.id == update_id {
+                        std::process::Command::new("cmd")
+                            .args(["/c", "start", "", "https://github.com/winterdrive/migao/releases/latest"])
+                            .spawn()
+                            .ok();
                     } else if event.id == report_id {
                         std::process::Command::new("cmd")
                             .args(["/c", "start", "", "https://github.com/winterdrive/migao/issues/new"])

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Check for Updates in tray menu** — right-clicking the system tray icon now includes a "Check for Updates" item that opens `github.com/winterdrive/migao/releases/latest` in the default browser
 - **Report Issue in tray menu** — right-clicking the system tray icon now includes a "Report Issue" item that opens `github.com/winterdrive/migao/issues/new` in the default browser
 - **English landing page** — `docs/en.html` mirrors the Chinese landing page with full English copy; language toggle in nav and hero on both pages
 - **Migao skill** — `skills/migao/SKILL.md` documents the CLI interface for AI agents and external tooling
