@@ -402,8 +402,15 @@ mod win {
         let exit_item = MenuItem::new("Exit", true, None);
         let sep = PredefinedMenuItem::separator();
         let menu = Menu::new();
-        menu.append_items(&[&pause_item, &login_item, &update_item, &report_item, &sep, &exit_item])
-            .expect("menu setup failed");
+        menu.append_items(&[
+            &pause_item,
+            &login_item,
+            &update_item,
+            &report_item,
+            &sep,
+            &exit_item,
+        ])
+        .expect("menu setup failed");
         let tray: TrayIcon = TrayIconBuilder::new()
             .with_icon(make_icon(IconState::Active))
             .with_tooltip("migao-watch — Ctrl+Alt+R to fix")
@@ -478,12 +485,22 @@ mod win {
                         should_quit = true;
                     } else if event.id == update_id {
                         std::process::Command::new("cmd")
-                            .args(["/c", "start", "", "https://github.com/winterdrive/migao/releases/latest"])
+                            .args([
+                                "/c",
+                                "start",
+                                "",
+                                "https://github.com/winterdrive/migao/releases/latest",
+                            ])
                             .spawn()
                             .ok();
                     } else if event.id == report_id {
                         std::process::Command::new("cmd")
-                            .args(["/c", "start", "", "https://github.com/winterdrive/migao/issues/new"])
+                            .args([
+                                "/c",
+                                "start",
+                                "",
+                                "https://github.com/winterdrive/migao/issues/new",
+                            ])
                             .spawn()
                             .ok();
                     } else if event.id == login_id {
