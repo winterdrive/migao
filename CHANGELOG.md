@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.2] - 2026-06-12
+
+- **Fixed:** `migao-watch` now keeps the tray icon grey while paused even after Windows notification-area repaints or focus changes. This is handled as a small Windows tray repaint workaround and does not affect the actual Pause / Resume state.
+
 ## [0.5.1] - 2026-06-11
 
 - **Fixed:** After correcting `bopomofo-daqian` garbled text, `migao-watch` now switches the foreground window's input method back to Chinese mode automatically. Uses `ImmGetDefaultIMEWnd` + `WM_IME_CONTROL` (cross-process safe), with `WM_INPUTLANGCHANGEREQUEST` as a fallback for keyboard-layout switching. Resolves [#1](https://github.com/winterdrive/migao/issues/1).

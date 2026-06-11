@@ -68,6 +68,9 @@ mod win {
     const WM_NOTIFY: u32 = WM_APP + 1;
     // Timer ID used to restore the tooltip text after showing the correction.
     const TIMER_TOOLTIP_RESET: usize = 1;
+    // Repeating 100 ms timer that keeps re-applying the paused icon while
+    // PAUSED=true. Started on Pause, killed on Resume.
+    const TIMER_ICON_KEEPALIVE: usize = 2;
 
     fn is_autostart_enabled() -> bool {
         let Ok(run) = RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(REG_RUN, KEY_READ)
@@ -124,6 +127,10 @@ mod win {
         Active,    // listening — active migao
         Corrected, // just fixed text — uses active migao
         Paused,    // hotkey suspended — paused migao
+    }
+
+    fn set_tray_icon(tray: &TrayIcon, state: IconState) {
+        tray.set_icon(Some(make_icon(state))).ok();
     }
 
     fn make_icon(state: IconState) -> tray_icon::Icon {
@@ -583,15 +590,26 @@ mod win {
                 } else if msg.message == WM_NOTIFY {
                     if let Some(summary) = notif_slot.lock().unwrap().take() {
                         let tip = format!("✓  {summary}");
-                        tray.set_icon(Some(make_icon(IconState::Corrected))).ok();
+                        set_tray_icon(&tray, IconState::Corrected);
                         tray.set_tooltip(Some(&tip)).ok();
                         SetTimer(std::ptr::null_mut(), TIMER_TOOLTIP_RESET, 4000, None);
                     }
                 } else if msg.message == WM_TIMER && msg.wParam == TIMER_TOOLTIP_RESET {
                     KillTimer(std::ptr::null_mut(), TIMER_TOOLTIP_RESET);
-                    tray.set_icon(Some(make_icon(IconState::Active))).ok();
-                    tray.set_tooltip(Some("migao-watch — Ctrl+Alt+R to fix"))
-                        .ok();
+                    tray.set_tooltip(Some(if PAUSED.load(Ordering::Relaxed) {
+                        "migao-watch — paused"
+                    } else {
+                        "migao-watch — Ctrl+Alt+R to fix"
+                    }))
+                    .ok();
+                } else if msg.message == WM_TIMER && msg.wParam == TIMER_ICON_KEEPALIVE {
+                    // Repeating: only kill when no longer paused (shouldn't
+                    // normally happen here, but guard just in case).
+                    if PAUSED.load(Ordering::Relaxed) {
+                        set_tray_icon(&tray, IconState::Paused);
+                    } else {
+                        KillTimer(std::ptr::null_mut(), TIMER_ICON_KEEPALIVE);
+                    }
                 }
                 DispatchMessageW(&msg);
 
@@ -628,18 +646,27 @@ mod win {
                         let now_paused = !PAUSED.load(Ordering::Relaxed);
                         PAUSED.store(now_paused, Ordering::Relaxed);
                         pause_item.set_text(if now_paused { "Resume" } else { "Pause" });
-                        tray.set_icon(Some(make_icon(if now_paused {
-                            IconState::Paused
-                        } else {
-                            IconState::Active
-                        })))
-                        .ok();
+                        set_tray_icon(
+                            &tray,
+                            if now_paused {
+                                IconState::Paused
+                            } else {
+                                IconState::Active
+                            },
+                        );
                         tray.set_tooltip(Some(if now_paused {
                             "migao-watch — paused"
                         } else {
                             "migao-watch — Ctrl+Alt+R to fix"
                         }))
                         .ok();
+                        if now_paused {
+                            // Start repeating keepalive so Explorer repaints
+                            // can't permanently revert the paused icon.
+                            SetTimer(std::ptr::null_mut(), TIMER_ICON_KEEPALIVE, 100, None);
+                        } else {
+                            KillTimer(std::ptr::null_mut(), TIMER_ICON_KEEPALIVE);
+                        }
                     }
                 }
             }
