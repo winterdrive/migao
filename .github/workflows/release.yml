@@ -87,6 +87,17 @@ jobs:
         with:
           generate_release_notes: false
           body: |
+            ## 平台支援
+
+            | | Windows | macOS | Linux |
+            |---|:---:|:---:|:---:|
+            | `migao fix` CLI | ✅ | ✅ | ✅ |
+            | `migao-watch` 快捷鍵常駐 | ✅ | — | — |
+
+            macOS / Linux 下載包僅含 `migao` CLI；`migao-watch` 為 Windows 專屬功能。
+
+            ---
+
             ## 安裝方式
 
             ### Windows（推薦）

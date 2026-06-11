@@ -12,3 +12,5 @@ scripts/cache/
 !.agents/skills/test-smoke/**
 !.agents/skills/test-e2e/
 !.agents/skills/test-e2e/**
+scripts/**
+debug.log
