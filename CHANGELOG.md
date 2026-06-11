@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.1] - 2026-06-11
 
 - **Fixed:** After correcting `bopomofo-daqian` garbled text, `migao-watch` now switches the foreground window's IME back to Chinese (native) input mode via `ImmSetConversionStatus`, so the next keystroke is typed in Chinese rather than English. Resolves [#1](https://github.com/winterdrive/migao/issues/1).
+- **Added:** Tray right-click menu now shows the installed version (`migao vX.Y.Z`) as a grayed-out header item.
+- **Added:** `install.ps1` now accepts a `-Prerelease` switch to install the latest pre-release build for testing.
 
 ## [0.5.0] - 2026-06-04
 

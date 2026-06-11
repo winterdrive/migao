@@ -427,6 +427,9 @@ mod win {
         }
 
         // ── Tray icon ────────────────────────────────────────────────────────
+        let version_item =
+            MenuItem::new(&format!("migao v{}", env!("CARGO_PKG_VERSION")), false, None);
+        let sep_top = PredefinedMenuItem::separator();
         let pause_item = MenuItem::new("Pause", true, None);
         let login_item = CheckMenuItem::new("Launch at Login", true, is_autostart_enabled(), None);
         let update_item = MenuItem::new("Check for Updates", true, None);
@@ -435,6 +438,8 @@ mod win {
         let sep = PredefinedMenuItem::separator();
         let menu = Menu::new();
         menu.append_items(&[
+            &version_item,
+            &sep_top,
             &pause_item,
             &login_item,
             &update_item,
