@@ -22,6 +22,9 @@ mod win {
     use winapi::um::consoleapi::SetConsoleCtrlHandler;
     use winapi::um::processthreadsapi::GetCurrentThreadId;
     use winapi::um::wincon::{CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT};
+    use winapi::um::imm::{
+        ImmGetContext, ImmGetConversionStatus, ImmReleaseContext, ImmSetConversionStatus,
+    };
     use winapi::um::winuser::{
         DispatchMessageW, GetClassNameW, GetForegroundWindow, GetMessageW, KillTimer,
         PostThreadMessageW, RegisterHotKey, SendInput, SetTimer, UnregisterHotKey, INPUT,
@@ -41,6 +44,7 @@ mod win {
     const VK_Z: u16 = 0x5A;
 
     const CYCLE_WINDOW: Duration = Duration::from_secs(3);
+    const IME_CMODE_NATIVE: u32 = 0x0001;
 
     static MAIN_THREAD_ID: AtomicU32 = AtomicU32::new(0);
     static PAUSED: AtomicBool = AtomicBool::new(false);
@@ -224,6 +228,24 @@ mod win {
         }
     }
 
+    fn switch_ime_to_chinese() {
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.is_null() {
+                return;
+            }
+            let himc = ImmGetContext(hwnd);
+            if himc.is_null() {
+                return;
+            }
+            let mut conv = 0u32;
+            let mut sent = 0u32;
+            ImmGetConversionStatus(himc, &mut conv, &mut sent);
+            ImmSetConversionStatus(himc, conv | IME_CMODE_NATIVE, sent);
+            ImmReleaseContext(hwnd, himc);
+        }
+    }
+
     fn paste(clipboard: &mut arboard::Clipboard, text: &str) -> bool {
         if clipboard.set_text(text).is_err() {
             return false;
@@ -347,6 +369,9 @@ mod win {
         );
 
         if paste(clipboard, &candidates[0]) {
+            if ime == "bopomofo-daqian" {
+                switch_ime_to_chinese();
+            }
             let orig = truncate(&text, 25);
             let fixed = truncate(&candidates[0], 25);
             let summary = format!("{orig} → {fixed}");
