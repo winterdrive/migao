@@ -20,14 +20,9 @@ mod win {
     use tray_icon::{TrayIcon, TrayIconBuilder};
     use winapi::shared::minwindef::TRUE;
     use winapi::um::consoleapi::SetConsoleCtrlHandler;
+    use winapi::um::imm::{ImmGetContext, ImmReleaseContext, HIMC};
     use winapi::um::processthreadsapi::GetCurrentThreadId;
     use winapi::um::wincon::{CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT};
-    use winapi::um::imm::{ImmGetContext, ImmReleaseContext, HIMC};
-
-    extern "system" {
-        fn ImmGetConversionStatus(hIMC: HIMC, lpdwConversion: *mut u32, lpdwSentence: *mut u32) -> i32;
-        fn ImmSetConversionStatus(hIMC: HIMC, dwConversion: u32, dwSentence: u32) -> i32;
-    }
     use winapi::um::winuser::{
         DispatchMessageW, GetClassNameW, GetForegroundWindow, GetMessageW, KillTimer,
         PostThreadMessageW, RegisterHotKey, SendInput, SetTimer, UnregisterHotKey, INPUT,
@@ -36,6 +31,15 @@ mod win {
     };
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
     use winreg::RegKey;
+
+    extern "system" {
+        fn ImmGetConversionStatus(
+            hIMC: HIMC,
+            lpdwConversion: *mut u32,
+            lpdwSentence: *mut u32,
+        ) -> i32;
+        fn ImmSetConversionStatus(hIMC: HIMC, dwConversion: u32, dwSentence: u32) -> i32;
+    }
 
     const HOTKEY_ID: i32 = 1;
     const VK_R: u32 = 0x52;
