@@ -59,9 +59,15 @@ cargo build --release
 
 ---
 
-## Windows 常駐程式 — `migao-watch`
+## Windows 常駐程式 — `migao-watch` *（僅限 Windows）*
 
 `migao-watch` 靜默執行於系統匣，在任何 Windows 應用程式中，按一個快捷鍵即可就地修正亂碼。
+
+> **macOS / Linux：** `migao-watch` 目前僅支援 Windows，歡迎貢獻其他平台版本——請至 [Issues](https://github.com/winterdrive/migao/issues) 討論或認領。
+> 目前有兩種替代方案：
+>
+> - **CLI pipe：** `pbpaste | migao fix | pbcopy`（macOS）或 `xclip -o | migao fix | xclip -i`（Linux）
+> - **AI agent：** 支援 skill 的 IDE（Claude Code、Cursor 等）可直接呼叫 `migao fix`——見 [`skills/migao/SKILL.md`](../skills/migao/SKILL.md)
 
 ### 使用流程
 

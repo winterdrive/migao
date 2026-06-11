@@ -43,7 +43,10 @@ Uninstall:
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Uninstall
 ```
 
-## Windows Daily Use
+## Windows Daily Use *(Windows only)*
+
+`migao-watch` is currently Windows-only. macOS / Linux contributions are welcome — open an [Issue](https://github.com/winterdrive/migao/issues) to discuss.
+Alternatives: **CLI pipe** `pbpaste | migao fix | pbcopy` (macOS) / `xclip -o | migao fix | xclip -i` (Linux); **AI agent** see [`skills/migao/SKILL.md`](../skills/migao/SKILL.md)
 
 1. Start Menu에서 **Migao Watch**를 실행합니다. 자동 실행을 켜 둔 경우에는 따로 실행할 필요가 없습니다.
 2. 입력기를 바꾸지 않아 잘못 입력된 텍스트를 선택합니다. 많은 에디터에서는 **Ctrl+A**로 입력 칸 전체를 선택할 수 있습니다.

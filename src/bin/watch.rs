@@ -19,17 +19,24 @@ mod win {
     use tray_icon::menu::{CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem};
     use tray_icon::{TrayIcon, TrayIconBuilder};
     use winapi::shared::minwindef::TRUE;
+    use winapi::shared::windef::HWND;
     use winapi::um::consoleapi::SetConsoleCtrlHandler;
     use winapi::um::processthreadsapi::GetCurrentThreadId;
     use winapi::um::wincon::{CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT};
     use winapi::um::winuser::{
-        DispatchMessageW, GetClassNameW, GetForegroundWindow, GetMessageW, KillTimer,
-        PostThreadMessageW, RegisterHotKey, SendInput, SetTimer, UnregisterHotKey, INPUT,
-        KEYBDINPUT, KEYEVENTF_KEYUP, MOD_ALT, MOD_CONTROL, MSG, WM_APP, WM_HOTKEY, WM_QUIT,
-        WM_TIMER,
+        DispatchMessageW, GetAsyncKeyState, GetClassNameW, GetForegroundWindow, GetKeyboardLayout,
+        GetKeyboardLayoutList, GetMessageW, GetWindowThreadProcessId, KillTimer, PostMessageW,
+        PostThreadMessageW, RegisterHotKey, SendInput, SendMessageTimeoutW, SetTimer,
+        UnregisterHotKey, INPUT, KEYBDINPUT, KEYEVENTF_KEYUP, MOD_ALT, MOD_CONTROL, MSG,
+        SMTO_ABORTIFHUNG, WM_APP, WM_HOTKEY, WM_INPUTLANGCHANGEREQUEST, WM_QUIT, WM_TIMER,
     };
     use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
     use winreg::RegKey;
+
+    #[link(name = "imm32")]
+    extern "system" {
+        fn ImmGetDefaultIMEWnd(hwnd: HWND) -> HWND;
+    }
 
     const HOTKEY_ID: i32 = 1;
     const VK_R: u32 = 0x52;
@@ -41,6 +48,15 @@ mod win {
     const VK_Z: u16 = 0x5A;
 
     const CYCLE_WINDOW: Duration = Duration::from_secs(3);
+    const VK_SHIFT: u16 = 0x10;
+
+    // IME mode switching after a correction (issue #1).
+    const LANGID_ZH_TW: usize = 0x0404;
+    const WM_IME_CONTROL: u32 = 0x0283;
+    const IMC_GETCONVERSIONMODE: usize = 0x0001;
+    const IMC_SETCONVERSIONMODE: usize = 0x0002;
+    const IMC_SETOPENSTATUS: usize = 0x0006;
+    const IME_CMODE_NATIVE: usize = 0x0001;
 
     static MAIN_THREAD_ID: AtomicU32 = AtomicU32::new(0);
     static PAUSED: AtomicBool = AtomicBool::new(false);
@@ -224,6 +240,99 @@ mod win {
         }
     }
 
+    /// Sends WM_IME_CONTROL to a default IME window with a timeout so an
+    /// unresponsive target can never hang the worker thread.
+    fn ime_msg(ime_wnd: HWND, cmd: usize, lparam: isize) -> Option<usize> {
+        let mut result: usize = 0;
+        let ok = unsafe {
+            SendMessageTimeoutW(
+                ime_wnd,
+                WM_IME_CONTROL,
+                cmd,
+                lparam,
+                SMTO_ABORTIFHUNG,
+                500,
+                &mut result,
+            )
+        };
+        if ok == 0 {
+            None
+        } else {
+            Some(result)
+        }
+    }
+
+    /// Best-effort switch of the foreground window's input method back to
+    /// Chinese after a successful Bopomofo correction (issue #1).
+    ///
+    /// Layer 1: keyboard layout is not Chinese (user typed with ENG active)
+    ///          → WM_INPUTLANGCHANGEREQUEST, the same mechanism as Win+Space.
+    /// Layer 2: MS Bopomofo active but in English mode → WM_IME_CONTROL on the
+    ///          default IME window. The message is processed inside the target
+    ///          process, so it works where ImmGetContext (process-local) cannot.
+    /// Layer 3: fallback blind Shift toggle. Safe direction: a correction just
+    ///          succeeded, so the IME must have been in English mode. Waits for
+    ///          the user to physically release Ctrl/Alt/R first — otherwise the
+    ///          IME sees Ctrl+Alt+Shift and ignores the toggle.
+    fn switch_ime_to_chinese() {
+        unsafe {
+            let hwnd = GetForegroundWindow();
+            if hwnd.is_null() {
+                return;
+            }
+
+            // Layer 1: wrong keyboard layout entirely.
+            let tid = GetWindowThreadProcessId(hwnd, std::ptr::null_mut());
+            if (GetKeyboardLayout(tid) as usize) & 0xFFFF != LANGID_ZH_TW {
+                let n = GetKeyboardLayoutList(0, std::ptr::null_mut());
+                let mut layouts = vec![std::ptr::null_mut(); n.max(0) as usize];
+                let n = GetKeyboardLayoutList(n, layouts.as_mut_ptr());
+                if let Some(&hkl) = layouts[..n.max(0) as usize]
+                    .iter()
+                    .find(|&&h| (h as usize) & 0xFFFF == LANGID_ZH_TW)
+                {
+                    PostMessageW(hwnd, WM_INPUTLANGCHANGEREQUEST, 0, hkl as isize);
+                }
+                return;
+            }
+
+            // Layer 2: Chinese IME active but in English mode.
+            let ime_wnd = ImmGetDefaultIMEWnd(hwnd);
+            if !ime_wnd.is_null() {
+                if let Some(conv) = ime_msg(ime_wnd, IMC_GETCONVERSIONMODE, 0) {
+                    if conv & IME_CMODE_NATIVE != 0 {
+                        return; // already in Chinese mode
+                    }
+                    ime_msg(
+                        ime_wnd,
+                        IMC_SETCONVERSIONMODE,
+                        (conv | IME_CMODE_NATIVE) as isize,
+                    );
+                    ime_msg(ime_wnd, IMC_SETOPENSTATUS, 1);
+                    if let Some(after) = ime_msg(ime_wnd, IMC_GETCONVERSIONMODE, 0) {
+                        if after & IME_CMODE_NATIVE != 0 {
+                            return; // verified switched
+                        }
+                    }
+                }
+            }
+
+            // Layer 3: blind Shift toggle, only after the hotkey keys are
+            // physically released.
+            let deadline = Instant::now() + Duration::from_millis(1500);
+            while [VK_CTRL as i32, VK_ALT as i32, VK_R as i32]
+                .iter()
+                .any(|&vk| GetAsyncKeyState(vk) as u16 & 0x8000 != 0)
+            {
+                if Instant::now() >= deadline {
+                    return; // keys still held; give up rather than mis-toggle
+                }
+                thread::sleep(Duration::from_millis(20));
+            }
+            batch(&mut vec![ki(VK_SHIFT, 0), ki(VK_SHIFT, KEYEVENTF_KEYUP)]);
+        }
+    }
+
     fn paste(clipboard: &mut arboard::Clipboard, text: &str) -> bool {
         if clipboard.set_text(text).is_err() {
             return false;
@@ -347,6 +456,9 @@ mod win {
         );
 
         if paste(clipboard, &candidates[0]) {
+            if ime == "bopomofo-daqian" {
+                switch_ime_to_chinese();
+            }
             let orig = truncate(&text, 25);
             let fixed = truncate(&candidates[0], 25);
             let summary = format!("{orig} → {fixed}");
@@ -395,6 +507,9 @@ mod win {
         }
 
         // ── Tray icon ────────────────────────────────────────────────────────
+        let version_item =
+            MenuItem::new(format!("migao v{}", env!("CARGO_PKG_VERSION")), false, None);
+        let sep_top = PredefinedMenuItem::separator();
         let pause_item = MenuItem::new("Pause", true, None);
         let login_item = CheckMenuItem::new("Launch at Login", true, is_autostart_enabled(), None);
         let update_item = MenuItem::new("Check for Updates", true, None);
@@ -403,6 +518,8 @@ mod win {
         let sep = PredefinedMenuItem::separator();
         let menu = Menu::new();
         menu.append_items(&[
+            &version_item,
+            &sep_top,
             &pause_item,
             &login_item,
             &update_item,

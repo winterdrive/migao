@@ -1,6 +1,6 @@
 [package]
 name = "migao"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "IME garbled text recovery — 翻譯米糕"
 license = "MIT AND Apache-2.0"
@@ -34,7 +34,7 @@ clap = { version = "4", features = ["derive"] }
 arboard = "3"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "wingdi", "winbase", "winnt", "synchapi", "consoleapi", "wincon", "processthreadsapi"] }
+winapi = { version = "0.3", features = ["winuser", "wingdi", "winbase", "winnt", "synchapi", "consoleapi", "wincon", "processthreadsapi", "imm"] }
 tray-icon = { version = "0.24.0", default-features = false }
 winreg = "0.56.0"
 image = { version = "0.25", default-features = false, features = ["png"] }
