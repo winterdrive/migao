@@ -316,9 +316,35 @@ mod tests {
         );
     }
 
-    // Known limitations (same-syllable disambiguation requires context/LM):
-    // 請問廁所在哪裡 → 裸→裏 (variant), 你吃飯了嗎 → 喫/犯,
-    // 這個功能還沒實作 → 十/座, 這個版本有很多問題 → 板
+    // ── V1.0 eval set (require neural reranker to pass) ─────────────────────
+    // These are ignored by default; run with `cargo test -- --include-ignored`
+    // to measure progress. All three currently produce wrong output due to
+    // same-syllable disambiguation that Viterbi alone cannot resolve.
+    // 這個版本有很多問題 was already fixed by BIGRAM_WEIGHT tuning (v0.6).
+
+    #[test]
+    #[ignore = "requires V1.0 neural reranker — 喫/吃 variant disambiguation"]
+    fn test_eval_chifan() {
+        // 你吃飯了嗎 — 吃(ㄔ)=t+space, current output: 你喫飯了嗎
+        let result = rule().apply("su3t z04xk7a87");
+        assert_eq!(result, Some("你吃飯了嗎".into()));
+    }
+
+    #[test]
+    #[ignore = "requires V1.0 neural reranker — 裡/裏 variant disambiguation"]
+    fn test_eval_cesuo() {
+        // 請問廁所在哪裡 — current output: 請問廁所在哪裏
+        let result = rule().apply("fu/3jp4hk4nji3y94s83xu3");
+        assert_eq!(result, Some("請問廁所在哪裡".into()));
+    }
+
+    #[test]
+    #[ignore = "requires V1.0 neural reranker — 實/十 and 作/座 disambiguation"]
+    fn test_eval_shizuo() {
+        // 這個功能還沒實作 — current output: 這個功能還沒十座
+        let result = rule().apply("5k4ek7ej/ s/6c96ao6g6yji4");
+        assert_eq!(result, Some("這個功能還沒實作".into()));
+    }
 
     #[test]
     fn test_appendix_sentence() {
