@@ -4,6 +4,7 @@ pub mod ime;
 pub mod pinyin_dict;
 pub mod rule;
 pub mod rules;
+pub mod user_data;
 pub mod viterbi;
 
 /// Recover garbled text produced by the given IME.

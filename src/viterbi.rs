@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub const COMPOUND_BONUS: f32 = 24.0;
 
 /// Weight applied to ln(bigram_count+1) at CJK word boundaries.
-pub const BIGRAM_WEIGHT: f32 = 0.15;
+pub const BIGRAM_WEIGHT: f32 = 0.20;
 
 /// Greedy best-entry lookup from a `HashMap<key, Vec<(word, freq)>>`.
 pub fn best_entry<'a>(

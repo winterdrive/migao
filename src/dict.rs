@@ -1,3 +1,4 @@
+use crate::user_data;
 use crate::viterbi;
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -8,6 +9,23 @@ pub struct ZhuyinDict {
     entries: HashMap<String, Vec<(String, u32)>>,
 }
 
+fn parse_tsv_into(src: &str, entries: &mut HashMap<String, Vec<(String, u32)>>) {
+    for line in src.lines() {
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.splitn(3, '\t').collect();
+        if parts.len() != 3 {
+            continue;
+        }
+        let freq: u32 = parts[2].trim().parse().unwrap_or(1);
+        entries
+            .entry(parts[0].to_string())
+            .or_default()
+            .push((parts[1].to_string(), freq));
+    }
+}
+
 impl ZhuyinDict {
     fn load() -> Self {
         let mut entries: HashMap<String, Vec<(String, u32)>> = HashMap::new();
@@ -15,20 +33,11 @@ impl ZhuyinDict {
             include_str!("../data/bopomofo.tsv"),
             include_str!("../data/supplement.tsv"),
         ] {
-            for line in src.lines() {
-                if line.is_empty() || line.starts_with('#') {
-                    continue;
-                }
-                let parts: Vec<&str> = line.splitn(3, '\t').collect();
-                if parts.len() != 3 {
-                    continue;
-                }
-                let freq: u32 = parts[2].trim().parse().unwrap_or(1);
-                entries
-                    .entry(parts[0].to_string())
-                    .or_default()
-                    .push((parts[1].to_string(), freq));
-            }
+            parse_tsv_into(src, &mut entries);
+        }
+        let user_src = user_data::load();
+        if !user_src.is_empty() {
+            parse_tsv_into(&user_src, &mut entries);
         }
         ZhuyinDict { entries }
     }
