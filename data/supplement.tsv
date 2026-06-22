@@ -22,6 +22,10 @@
 # 吃 vs 喫: handled automatically in dict.rs ZhuyinDict::load().
 # All 喫-containing entries from bopomofo.tsv are mirrored as 吃 at priority 10M.
 
+# 甚麼 / 什麼: Microsoft IME accepts ㄕㄜˊ (gk6) for ㄕㄣˊ and ㄇㄛ˙ (ai7) for ㄇㄜ˙.
+# Users accustomed to this shortcut expect gk6ai7 → 甚麼.
+ㄕㄜˊㄇㄛ˙	甚麼	10000000
+
 # 裡 vs 裏: dictionary only contains 裏 form. Add modern variant 裡.
 ㄌㄧˇ	裡	10000000
 ㄋㄚˇㄌㄧˇ	哪裡	10000000
