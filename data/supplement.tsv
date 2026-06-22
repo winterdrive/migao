@@ -18,3 +18,13 @@
 ㄧˇㄨㄟˊ	以為	100000
 ㄨㄟˊ˙ㄌㄜ	為了	50000
 ㄨㄟˊㄖㄣˊ	為人	50000
+
+# 吃 vs 喫: handled automatically in dict.rs ZhuyinDict::load().
+# All 喫-containing entries from bopomofo.tsv are mirrored as 吃 at priority 10M.
+
+# 裡 vs 裏: dictionary only contains 裏 form. Add modern variant 裡.
+ㄌㄧˇ	裡	10000000
+ㄋㄚˇㄌㄧˇ	哪裡	10000000
+ㄗㄞˋㄋㄚˇㄌㄧˇ	在哪裡	10000000
+ㄓㄜˋㄌㄧˇ	這裡	10000000
+ㄋㄚˋㄌㄧˇ	那裡	10000000

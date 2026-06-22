@@ -14,3 +14,4 @@ scripts/cache/
 !.agents/skills/test-e2e/**
 scripts/**
 debug.log
+docs/dev/**

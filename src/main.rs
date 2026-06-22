@@ -25,6 +25,19 @@ enum Commands {
     },
     /// List supported IME identifiers
     List,
+    /// Record a correction to improve future results
+    ///
+    /// Example: migao report "1p4w1" "版本"
+    ///
+    /// Tip: to find the garbled form of a word, type it with Bopomofo IME
+    /// active but keyboard in English mode, then select and press Ctrl+Alt+R.
+    /// The garbled keys appear in the tray tooltip before the arrow.
+    Report {
+        /// The garbled ASCII key sequence (e.g. "1p4w1")
+        garbled: String,
+        /// The correct Chinese text (e.g. "版本")
+        correct: String,
+    },
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -88,6 +101,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Supported IME identifiers:");
             println!("  bopomofo-daqian  (aliases: zhuyin, 注音)  — 大千標準注音鍵盤");
             println!("  pinyin           (alias: 拼音)             — 全拼（標準 QWERTY）");
+        }
+
+        Commands::Report { garbled, correct } => {
+            use migao::ime::daqian::{self, Segment};
+
+            let segments = daqian::segment(&garbled);
+            let syllables: Vec<String> = segments
+                .iter()
+                .filter_map(|s| {
+                    if let Segment::Syllable(keys) = s {
+                        if daqian::is_valid_syllable(keys) {
+                            let z = daqian::keys_to_bopomofo(keys);
+                            if !z.is_empty() {
+                                return Some(z);
+                            }
+                        }
+                    }
+                    None
+                })
+                .collect();
+
+            if syllables.is_empty() {
+                eprintln!(
+                    "migao: '{}' does not look like Bopomofo (大千) garbled text",
+                    garbled
+                );
+                std::process::exit(1);
+            }
+
+            let key = syllables.concat();
+            match migao::user_data::append_entry(&key, &correct) {
+                Ok(()) => println!("✓  {} → {}", key, correct),
+                Err(e) => {
+                    eprintln!("migao: failed to write user supplement: {}", e);
+                    std::process::exit(1);
+                }
+            }
         }
     }
 

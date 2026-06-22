@@ -554,9 +554,10 @@ mod win {
         let notif_writer = Arc::clone(&notif_slot);
 
         thread::spawn(move || {
-            // Pre-warm dictionaries before the first hotkey press.
+            // Pre-warm dictionaries and neural reranker before the first hotkey press.
             let _ = migao::recover_top_n("su3cl3", "bopomofo-daqian", 1);
             let _ = migao::recover_top_n("su3cl3", "english-from-bopomofo", 1);
+            migao::reranker::init();
 
             let mut clipboard = arboard::Clipboard::new().expect("clipboard init failed");
             let mut cycle: Option<CycleState> = None;
