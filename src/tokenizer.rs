@@ -62,10 +62,17 @@ mod tests {
     #[test]
     fn test_encode_wraps_with_cls_sep() {
         // Build a minimal vocab map directly to test encode() logic.
-        let vocab = [("[PAD]", 0i64), ("[UNK]", 100), ("[CLS]", 101), ("[SEP]", 102), ("你", 872), ("好", 1962)]
-            .iter()
-            .map(|(k, v)| (k.to_string(), *v))
-            .collect();
+        let vocab = [
+            ("[PAD]", 0i64),
+            ("[UNK]", 100),
+            ("[CLS]", 101),
+            ("[SEP]", 102),
+            ("你", 872),
+            ("好", 1962),
+        ]
+        .iter()
+        .map(|(k, v)| (k.to_string(), *v))
+        .collect();
         let tok = Tokenizer { vocab };
         let ids = tok.encode("你好");
         assert_eq!(ids, vec![101, 872, 1962, 102]);
