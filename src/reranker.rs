@@ -1,6 +1,6 @@
 use crate::tokenizer::{self, Tokenizer};
 use crate::user_data;
-use ndarray::{Axis, Array2};
+use ndarray::{Array2, Axis};
 use ort::session::Session;
 use ort::value::Tensor;
 use std::sync::{Mutex, OnceLock};
@@ -21,7 +21,7 @@ impl Reranker {
     pub fn load() -> Option<Self> {
         let base = user_data::user_supplement_path()?.parent()?.to_path_buf();
         let models_dir = base.join("models");
-        let dll_path   = models_dir.join("onnxruntime.dll");
+        let dll_path = models_dir.join("onnxruntime.dll");
         let model_path = models_dir.join("bert-tiny-chinese.onnx");
         let vocab_path = models_dir.join("vocab.txt");
 
@@ -38,9 +38,15 @@ impl Reranker {
         }
 
         let tok = Tokenizer::load(&vocab_path).ok()?;
-        let sess = Session::builder().ok()?.commit_from_file(&model_path).ok()?;
+        let sess = Session::builder()
+            .ok()?
+            .commit_from_file(&model_path)
+            .ok()?;
 
-        Some(Reranker { session: Mutex::new(sess), tokenizer: tok })
+        Some(Reranker {
+            session: Mutex::new(sess),
+            tokenizer: tok,
+        })
     }
 
     /// Compute pseudo-log-likelihood (PLH) for a sentence using masked scoring.
@@ -111,7 +117,7 @@ impl Reranker {
             }
 
             let row = logits
-                .index_axis(Axis(0), 0)      // remove batch dim
+                .index_axis(Axis(0), 0) // remove batch dim
                 .index_axis(Axis(0), mask_pos) // position we masked
                 .to_owned();
 
@@ -137,10 +143,8 @@ impl Reranker {
         const MIN_RERANK_MARGIN: f32 = 0.40;
 
         let viterbi_top = candidates[0].clone();
-        let mut scored: Vec<(f32, String)> = candidates
-            .drain(..)
-            .map(|c| (self.score(&c), c))
-            .collect();
+        let mut scored: Vec<(f32, String)> =
+            candidates.drain(..).map(|c| (self.score(&c), c)).collect();
 
         // Score of Viterbi's top candidate (might have been scored already above).
         let viterbi_score = scored
