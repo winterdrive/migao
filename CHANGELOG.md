@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-06-22
+
+### Fixed
+
+- **甚麼 via alternate key path** — Microsoft IME accepts `gk6ai7` (ㄕㄜˊㄇㄛ˙) as a shorthand for 甚麼; added compound entry to `supplement.tsv` so Migao produces the same result. This covers the common pattern where users have trained themselves on a non-standard but accepted key sequence.
+
 ## [1.0.0] - 2026-06-22
 
 ### Added
