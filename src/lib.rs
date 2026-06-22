@@ -2,8 +2,10 @@ pub mod bigram;
 pub mod dict;
 pub mod ime;
 pub mod pinyin_dict;
+pub mod reranker;
 pub mod rule;
 pub mod rules;
+pub mod tokenizer;
 pub mod user_data;
 pub mod viterbi;
 

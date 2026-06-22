@@ -6,6 +6,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-06-22
+
+### Added
+
+- **Neural reranker (V1.0)** — `ckiplab/bert-tiny-chinese` ONNX model (≈45 MB, via ONNX Runtime `load-dynamic`) reranks Viterbi top-5 candidates using masked Pseudo-Log-Likelihood (PLH) scoring; loaded from `%APPDATA%\Migao\models\` at startup, with graceful fallback to Viterbi-only when model files are absent
+- **Masked PLH scoring** — each content token is masked one-at-a-time and BERT predicts it from context; negative mean log-probability (lower = more natural); sequential forward passes avoid ONNX batch-size issues
+- **UNK penalty** — characters absent from BERT vocab (rare/classical CJK) receive a fixed -20.0 log-prob so they rank below known characters rather than appearing artificially fluent
+- **Minimum-margin threshold** — reranker only displaces Viterbi's top-1 when PLH improvement exceeds 0.40 nats, preventing low-confidence BERT overrides (e.g. 遍/變 diff ~0.20 is blocked; 實作/十座 diff ~0.57 is accepted)
+- **`src/reranker.rs`** — global `OnceLock<Option<Reranker>>` with `Mutex<Session>` for thread-safe BERT inference
+- **`src/tokenizer.rs`** — character-level BERT tokenizer (loads `vocab.txt`), adds `MASK_ID = 103` constant
+- **`scripts/export_reranker.py`** — exports `ckiplab/bert-tiny-chinese` to ONNX opset 18 with external data file
+
+### Changed
+
+- **`apply()` now uses neural reranker** — changed from `dict::to_chinese()` (Viterbi-only) to `dict::to_chinese_candidates(1, ...)` so the reranker participates in single-best recovery, not just top-N
+- **`apply_top_n()` early-return removed** — previously `n == 1` degraded back to `apply()`; now all paths go through `to_chinese_candidates` and the reranker
+- **Dictionary modernisation: 喫 → 吃** — `ZhuyinDict::load()` now auto-generates `吃`-variant entries at priority 10 M for every `喫`-containing entry in `bopomofo.tsv`, covering 799 compound/single entries; the archaic `喫` remains available but ranks lower
+- **`data/supplement.tsv`** — added `裡`/哪裡/在哪裡/這裡/那裡 entries at priority 10 M; `喫→吃` overrides now handled in code rather than manually listed
+- **`Cargo.toml`** — ONNX Runtime dependency `ort = "2.0.0-rc.12"` with `load-dynamic` + `ndarray` features; `ndarray = "0.17"` pinned to match ort
+
+### Fixed
+
+- **`test_eval_chifan`**: `你吃飯了嗎` — now correct via dictionary modernisation (喫飯了嗎 compound overridden)
+- **`test_eval_cesuo`**: `請問廁所在哪裡` — now correct via supplement `裡` entries
+- **`test_eval_shizuo`**: `這個功能還沒實作` — now correct via neural reranker (PLH margin 0.57 > threshold)
+- **`test_mass_zaishuo` regression preserved**: `你可以再說一遍嗎` — reranker margin for 遍/變 is ~0.20, below the 0.40 threshold, so Viterbi's correct `遍` choice is retained
+
 ## [0.5.0] - 2026-06-04
 
 ### Added

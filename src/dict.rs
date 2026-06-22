@@ -39,6 +39,25 @@ impl ZhuyinDict {
         if !user_src.is_empty() {
             parse_tsv_into(&user_src, &mut entries);
         }
+        // Modernise archaic 喫 → 吃 for all dictionary entries.
+        // bopomofo.tsv was built from a corpus with high 喫 frequency; in modern
+        // Traditional Chinese (Taiwan), 吃 is the standard character.
+        // We inject 吃-variants at very high frequency so they outrank the 喫 originals.
+        let chi_keys: Vec<(String, String)> = entries
+            .iter()
+            .flat_map(|(key, vals)| {
+                vals.iter().filter_map(|(word, _)| {
+                    if word.contains('喫') {
+                        Some((key.clone(), word.replace('喫', "吃")))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+        for (key, new_word) in chi_keys {
+            entries.entry(key).or_default().push((new_word, 10_000_000));
+        }
         ZhuyinDict { entries }
     }
 
@@ -89,6 +108,12 @@ pub fn to_chinese_candidates(n: usize, syllables: &[String]) -> Vec<String> {
     }
     let dict = global();
     let mut neutral_hints = vec![false; syllables.len()];
+    // Request extra candidates so the reranker has room to reorder.
+    let fetch_n = if crate::reranker::global().is_some() {
+        n.max(5)
+    } else {
+        n
+    };
     let normalised: Vec<String> = syllables
         .iter()
         .enumerate()
@@ -111,7 +136,16 @@ pub fn to_chinese_candidates(n: usize, syllables: &[String]) -> Vec<String> {
             syl.clone()
         })
         .collect();
-    viterbi::decode_candidates(n, &normalised, &neutral_hints, &dict.entries)
+    let candidates =
+        viterbi::decode_candidates(fetch_n, &normalised, &neutral_hints, &dict.entries);
+
+    // Rerank with neural model when available; truncate to requested n.
+    let reranked = crate::reranker::global()
+        .as_ref()
+        .map(|r| r.rerank(candidates.clone()))
+        .unwrap_or(candidates);
+
+    reranked.into_iter().take(n).collect()
 }
 
 pub fn to_chinese(syllables: &[String]) -> String {

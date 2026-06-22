@@ -36,7 +36,11 @@ impl Rule for BopomofoDaqianRule {
                     } else {
                         // Structurally invalid syllable (e.g. English word): flush and passthrough
                         if !syl_buf.is_empty() {
-                            out.push_str(&dict::to_chinese(&syl_buf));
+                            let best = dict::to_chinese_candidates(1, &syl_buf)
+                                .into_iter()
+                                .next()
+                                .unwrap_or_default();
+                            out.push_str(&best);
                             syl_buf.clear();
                         }
                         out.push_str(keys);
@@ -44,7 +48,11 @@ impl Rule for BopomofoDaqianRule {
                 }
                 Segment::Passthrough(ch) => {
                     if !syl_buf.is_empty() {
-                        out.push_str(&dict::to_chinese(&syl_buf));
+                        let best = dict::to_chinese_candidates(1, &syl_buf)
+                            .into_iter()
+                            .next()
+                            .unwrap_or_default();
+                        out.push_str(&best);
                         syl_buf.clear();
                     }
                     out.push(*ch);
@@ -53,7 +61,11 @@ impl Rule for BopomofoDaqianRule {
         }
 
         if !syl_buf.is_empty() {
-            out.push_str(&dict::to_chinese(&syl_buf));
+            let best = dict::to_chinese_candidates(1, &syl_buf)
+                .into_iter()
+                .next()
+                .unwrap_or_default();
+            out.push_str(&best);
         }
 
         if out.is_empty() {
@@ -67,10 +79,6 @@ impl Rule for BopomofoDaqianRule {
         if n == 0 || self.confidence(input) < 0.3 {
             return Vec::new();
         }
-        if n == 1 {
-            return self.apply(input).into_iter().collect();
-        }
-
         let segments = daqian::segment(input);
 
         // Top-N only works cleanly on continuous phonetic runs; degrade for mixed content.
@@ -316,32 +324,28 @@ mod tests {
         );
     }
 
-    // ── V1.0 eval set (require neural reranker to pass) ─────────────────────
-    // These are ignored by default; run with `cargo test -- --include-ignored`
-    // to measure progress. All three currently produce wrong output due to
-    // same-syllable disambiguation that Viterbi alone cannot resolve.
-    // 這個版本有很多問題 was already fixed by BIGRAM_WEIGHT tuning (v0.6).
+    // ── V1.0 eval set ──────────────────────────────────────────────────────────
+    // Same-syllable disambiguation tests. All three require the neural reranker
+    // (ckiplab/bert-tiny-chinese via ONNX) or dictionary modernisation; all pass
+    // as of V1.0.
 
     #[test]
-    #[ignore = "requires V1.0 neural reranker — 喫/吃 variant disambiguation"]
     fn test_eval_chifan() {
-        // 你吃飯了嗎 — 吃(ㄔ)=t+space, current output: 你喫飯了嗎
+        // 你吃飯了嗎 — fixed in V1.0 by auto-modernising 喫→吃 at load time.
         let result = rule().apply("su3t z04xk7a87");
         assert_eq!(result, Some("你吃飯了嗎".into()));
     }
 
     #[test]
-    #[ignore = "requires V1.0 neural reranker — 裡/裏 variant disambiguation"]
     fn test_eval_cesuo() {
-        // 請問廁所在哪裡 — current output: 請問廁所在哪裏
+        // 請問廁所在哪裡 — fixed in V1.0 by adding 裡 entries to supplement.tsv.
         let result = rule().apply("fu/3jp4hk4nji3y94s83xu3");
         assert_eq!(result, Some("請問廁所在哪裡".into()));
     }
 
     #[test]
-    #[ignore = "requires V1.0 neural reranker — 實/十 and 作/座 disambiguation"]
     fn test_eval_shizuo() {
-        // 這個功能還沒實作 — current output: 這個功能還沒十座
+        // 這個功能還沒實作 — fixed in V1.0 by neural reranker (PLH margin > 0.40).
         let result = rule().apply("5k4ek7ej/ s/6c96ao6g6yji4");
         assert_eq!(result, Some("這個功能還沒實作".into()));
     }
