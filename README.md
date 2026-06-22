@@ -56,9 +56,15 @@ cargo build --release
 
 ---
 
-## Windows Daily Use — Migao Watch
+## Windows Daily Use — Migao Watch *(Windows only)*
 
 `migao-watch` runs silently in the system tray and fixes garbled text anywhere on Windows with a single hotkey.
+
+> **macOS / Linux:** `migao-watch` is not yet available on non-Windows platforms. Contributions are welcome — open an [Issue](https://github.com/winterdrive/migao/issues) to discuss or claim the work.
+> In the meantime, two alternatives exist:
+>
+> - **CLI pipe:** `pbpaste | migao fix | pbcopy` (macOS) or `xclip -o | migao fix | xclip -i` (Linux)
+> - **AI agent:** IDEs with skill support (Claude Code, Cursor, etc.) can call `migao fix` directly — see [`skills/migao/SKILL.md`](skills/migao/SKILL.md)
 
 ### Fix selected text in-place
 

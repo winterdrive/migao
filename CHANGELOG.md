@@ -33,6 +33,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`test_eval_shizuo`**: `這個功能還沒實作` — now correct via neural reranker (PLH margin 0.57 > threshold)
 - **`test_mass_zaishuo` regression preserved**: `你可以再說一遍嗎` — reranker margin for 遍/變 is ~0.20, below the 0.40 threshold, so Viterbi's correct `遍` choice is retained
 
+## [0.5.2] - 2026-06-12
+
+- **Fixed:** `migao-watch` now keeps the tray icon grey while paused even after Windows notification-area repaints or focus changes. This is handled as a small Windows tray repaint workaround and does not affect the actual Pause / Resume state.
+
+## [0.5.1] - 2026-06-11
+
+- **Fixed:** After correcting `bopomofo-daqian` garbled text, `migao-watch` now switches the foreground window's input method back to Chinese mode automatically. Uses `ImmGetDefaultIMEWnd` + `WM_IME_CONTROL` (cross-process safe), with `WM_INPUTLANGCHANGEREQUEST` as a fallback for keyboard-layout switching. Resolves [#1](https://github.com/winterdrive/migao/issues/1).
+- **Added:** Tray right-click menu now shows the installed version (`migao vX.Y.Z`) as a grayed-out header item.
+- **Added:** `install.ps1` now accepts a `-Prerelease` switch to install the latest pre-release build for testing.
+
 ## [0.5.0] - 2026-06-04
 
 ### Added

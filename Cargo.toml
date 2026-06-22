@@ -36,7 +36,7 @@ ort = { version = "2.0.0-rc.12", features = ["load-dynamic", "ndarray"] }
 arboard = "3"
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "wingdi", "winbase", "winnt", "synchapi", "consoleapi", "wincon", "processthreadsapi"] }
+winapi = { version = "0.3", features = ["winuser", "wingdi", "winbase", "winnt", "synchapi", "consoleapi", "wincon", "processthreadsapi", "imm"] }
 tray-icon = { version = "0.24.0", default-features = false }
 winreg = "0.56.0"
 image = { version = "0.25", default-features = false, features = ["png"] }

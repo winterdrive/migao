@@ -43,7 +43,10 @@ Uninstall:
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Uninstall
 ```
 
-## Windows Daily Use
+## Windows Daily Use *(Windows only)*
+
+`migao-watch` is currently Windows-only. macOS / Linux contributions are welcome — open an [Issue](https://github.com/winterdrive/migao/issues) to discuss.
+Alternatives: **CLI pipe** `pbpaste | migao fix | pbcopy` (macOS) / `xclip -o | migao fix | xclip -i` (Linux); **AI agent** see [`skills/migao/SKILL.md`](../skills/migao/SKILL.md)
 
 1. Start Menu から **Migao Watch** を起動します。自動起動を有効にしている場合は不要です。
 2. 入力方式を切り替え忘れて文字化けしたテキストを選択します。多くのエディタでは **Ctrl+A** で入力欄全体を選択できます。

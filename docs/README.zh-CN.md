@@ -41,7 +41,10 @@ irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex
 & ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Uninstall
 ```
 
-## Windows 日常使用
+## Windows 日常使用 *（仅限 Windows）*
+
+`migao-watch` 目前仅支援 Windows。macOS / Linux 欢迎贡献——请至 [Issues](https://github.com/winterdrive/migao/issues) 讨论或认领。
+目前有两种替代方案：**CLI pipe：** `pbpaste | migao fix | pbcopy`（macOS）或 `xclip -o | migao fix | xclip -i`（Linux）；**AI agent：** 见 [`skills/migao/SKILL.md`](../skills/migao/SKILL.md)
 
 1. 从开始菜单启动 **Migao Watch**，或让它开机自动启动。
 2. 照常打字。如果忘记切换输入法而产生乱码，选中它；在很多编辑器里，**Ctrl+A** 可以选中整个输入框。

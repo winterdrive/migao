@@ -1,11 +1,12 @@
 #!/usr/bin/env pwsh
 # Migao Windows Installer / Uninstaller
 #
-# Install:   irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex
-# Uninstall: & ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Uninstall
-#            (or: .\install.ps1 -Uninstall)
+# Install (latest):      irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex
+# Install (pre-release): & ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Prerelease
+# Uninstall:             & ([scriptblock]::Create((irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1))) -Uninstall
+#                        (or: .\install.ps1 -Uninstall)
 
-param([switch]$Uninstall)
+param([switch]$Uninstall, [switch]$Prerelease)
 
 $ErrorActionPreference = "Stop"
 $repo        = "winterdrive/migao"
@@ -127,7 +128,16 @@ Stop-MigaoWatch
 $previousProgressPreference = $ProgressPreference
 $ProgressPreference = "SilentlyContinue"
 try {
-    $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"
+    if ($Prerelease) {
+        $releases = Invoke-RestMethod "https://api.github.com/repos/$repo/releases"
+        $release = $releases | Where-Object { $_.prerelease -eq $true } | Select-Object -First 1
+        if (-not $release) {
+            Write-Error "No pre-release found. Check https://github.com/$repo/releases"
+            exit 1
+        }
+    } else {
+        $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"
+    }
 } finally {
     $ProgressPreference = $previousProgressPreference
 }
