@@ -1,5 +1,25 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
+#[cfg(any(windows, test))]
+fn should_restore_clipboard_text(current_text: Option<&str>, inserted_text: &str) -> bool {
+    current_text == Some(inserted_text)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_restore_clipboard_text;
+
+    #[test]
+    fn restores_only_when_clipboard_still_contains_inserted_text() {
+        assert!(should_restore_clipboard_text(Some("你好"), "你好"));
+        assert!(!should_restore_clipboard_text(
+            Some("user copied something else"),
+            "你好"
+        ));
+        assert!(!should_restore_clipboard_text(None, "你好"));
+    }
+}
+
 /// migao-watch — Windows background hotkey daemon with system tray
 ///
 /// Registers Ctrl+Alt+R globally. On press:
@@ -340,12 +360,36 @@ mod win {
         }
     }
 
-    fn paste(clipboard: &mut arboard::Clipboard, text: &str) -> bool {
+    fn capture_clipboard_text(clipboard: &mut arboard::Clipboard) -> Option<String> {
+        clipboard.get_text().ok()
+    }
+
+    fn restore_clipboard_text_if_unchanged(
+        clipboard: &mut arboard::Clipboard,
+        inserted_text: &str,
+        restore_to: Option<&str>,
+    ) {
+        let current = clipboard.get_text().ok();
+        if !super::should_restore_clipboard_text(current.as_deref(), inserted_text) {
+            return;
+        }
+        if let Some(previous) = restore_to {
+            let _ = clipboard.set_text(previous);
+        }
+    }
+
+    fn paste_preserving_clipboard(
+        clipboard: &mut arboard::Clipboard,
+        text: &str,
+        restore_to: Option<&str>,
+    ) -> bool {
         if clipboard.set_text(text).is_err() {
             return false;
         }
         thread::sleep(Duration::from_millis(50));
         ctrl_v();
+        thread::sleep(Duration::from_millis(120));
+        restore_clipboard_text_if_unchanged(clipboard, text, restore_to);
         true
     }
 
@@ -373,6 +417,7 @@ mod win {
         // ── Cycle mode ───────────────────────────────────────────────────────
         if let Some(state) = cycle.as_mut() {
             if state.last_at.elapsed() < CYCLE_WINDOW {
+                let restore_clipboard_to = capture_clipboard_text(clipboard);
                 let was_original = state.idx >= state.candidates.len();
                 state.idx = (state.idx + 1) % (state.candidates.len() + 1);
 
@@ -390,7 +435,8 @@ mod win {
                         thread::sleep(Duration::from_millis(80));
                     }
                     eprintln!("migao-watch: cycle {}/{}  {}", state.idx, total, chosen);
-                    paste(clipboard, &chosen).then(|| state.last_at = Instant::now());
+                    paste_preserving_clipboard(clipboard, &chosen, restore_clipboard_to.as_deref())
+                        .then(|| state.last_at = Instant::now());
                     let preview = truncate(&chosen, 25);
                     return Some(format!("Candidate {}/{}: {preview}", state.idx + 1, total));
                 } else {
@@ -398,7 +444,12 @@ mod win {
                     if state.in_terminal {
                         // Terminal: ctrl_z only undid the paste; text is empty — restore explicitly.
                         let original = state.original.clone();
-                        paste(clipboard, &original).then(|| state.last_at = Instant::now());
+                        paste_preserving_clipboard(
+                            clipboard,
+                            &original,
+                            restore_clipboard_to.as_deref(),
+                        )
+                        .then(|| state.last_at = Instant::now());
                     } else {
                         // Editor: ctrl_z already restored the original text via undo history.
                         state.last_at = Instant::now();
@@ -416,6 +467,7 @@ mod win {
         // the selection live, so ctrl_v replaces it cleanly without touching the
         // undo stack unnecessarily.
         let in_terminal = is_terminal_foreground();
+        let restore_clipboard_to = capture_clipboard_text(clipboard);
         if in_terminal {
             ctrl_x();
         } else {
@@ -442,7 +494,7 @@ mod win {
 
         let Some((_, ime)) = best_rule else {
             if in_terminal {
-                paste(clipboard, &text);
+                paste_preserving_clipboard(clipboard, &text, restore_clipboard_to.as_deref());
             }
             return None;
         };
@@ -450,7 +502,7 @@ mod win {
 
         if candidates.is_empty() || candidates[0] == text {
             if in_terminal {
-                paste(clipboard, &text);
+                paste_preserving_clipboard(clipboard, &text, restore_clipboard_to.as_deref());
             }
             return None;
         }
@@ -462,7 +514,7 @@ mod win {
             candidates[0]
         );
 
-        if paste(clipboard, &candidates[0]) {
+        if paste_preserving_clipboard(clipboard, &candidates[0], restore_clipboard_to.as_deref()) {
             if ime == "bopomofo-daqian" {
                 switch_ime_to_chinese();
             }
