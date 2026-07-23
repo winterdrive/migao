@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- **Minimal management CLI** — added `migao status`, `migao config`, `migao config set hotkey <value>`, and `migao watch autostart on/off` for inspecting setup, editing the watcher hotkey, and toggling Launch at Login from the CLI.
+- **Tray CLI entry point** — added an **Open Migao Command** tray menu item that opens a terminal with `migao status`.
+
 ## [1.0.2] - 2026-07-23
 
 ### Fixed

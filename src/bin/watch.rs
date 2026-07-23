@@ -50,8 +50,6 @@ mod win {
         UnregisterHotKey, INPUT, KEYBDINPUT, KEYEVENTF_KEYUP, MOD_ALT, MOD_CONTROL, MSG,
         SMTO_ABORTIFHUNG, WM_APP, WM_HOTKEY, WM_INPUTLANGCHANGEREQUEST, WM_QUIT, WM_TIMER,
     };
-    use winreg::enums::{HKEY_CURRENT_USER, KEY_READ, KEY_SET_VALUE};
-    use winreg::RegKey;
 
     #[link(name = "imm32")]
     extern "system" {
@@ -59,7 +57,6 @@ mod win {
     }
 
     const HOTKEY_ID: i32 = 1;
-    const VK_R: u32 = 0x52;
     const VK_CTRL: u16 = 0x11;
     const VK_ALT: u16 = 0x12;
     const VK_C: u16 = 0x43;
@@ -81,9 +78,6 @@ mod win {
     static MAIN_THREAD_ID: AtomicU32 = AtomicU32::new(0);
     static PAUSED: AtomicBool = AtomicBool::new(false);
 
-    const REG_RUN: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
-    const REG_KEY: &str = "MigaoWatch";
-
     // Custom message posted by the worker thread when a correction is made.
     const WM_NOTIFY: u32 = WM_APP + 1;
     // Timer ID used to restore the tooltip text after showing the correction.
@@ -91,30 +85,6 @@ mod win {
     // Repeating 100 ms timer that keeps re-applying the paused icon while
     // PAUSED=true. Started on Pause, killed on Resume.
     const TIMER_ICON_KEEPALIVE: usize = 2;
-
-    fn is_autostart_enabled() -> bool {
-        let Ok(run) = RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(REG_RUN, KEY_READ)
-        else {
-            return false;
-        };
-        run.get_raw_value(REG_KEY).is_ok()
-    }
-
-    fn set_autostart(enable: bool) {
-        let Ok(run) =
-            RegKey::predef(HKEY_CURRENT_USER).open_subkey_with_flags(REG_RUN, KEY_SET_VALUE)
-        else {
-            return;
-        };
-        if enable {
-            if let Ok(exe) = std::env::current_exe() {
-                let path = format!("\"{}\"", exe.display());
-                let _ = run.set_value(REG_KEY, &path);
-            }
-        } else {
-            let _ = run.delete_value(REG_KEY);
-        }
-    }
 
     struct CycleState {
         candidates: Vec<String>,
@@ -301,7 +271,7 @@ mod win {
     ///          succeeded, so the IME must have been in English mode. Waits for
     ///          the user to physically release Ctrl/Alt/R first — otherwise the
     ///          IME sees Ctrl+Alt+Shift and ignores the toggle.
-    fn switch_ime_to_chinese() {
+    fn switch_ime_to_chinese(hotkey_vk: u32) {
         unsafe {
             let hwnd = GetForegroundWindow();
             if hwnd.is_null() {
@@ -347,7 +317,7 @@ mod win {
             // Layer 3: blind Shift toggle, only after the hotkey keys are
             // physically released.
             let deadline = Instant::now() + Duration::from_millis(1500);
-            while [VK_CTRL as i32, VK_ALT as i32, VK_R as i32]
+            while [VK_CTRL as i32, VK_ALT as i32, hotkey_vk as i32]
                 .iter()
                 .any(|&vk| GetAsyncKeyState(vk) as u16 & 0x8000 != 0)
             {
@@ -401,8 +371,9 @@ mod win {
     fn handle_hotkey(
         clipboard: &mut arboard::Clipboard,
         cycle: &mut Option<CycleState>,
+        hotkey_vk: u32,
     ) -> Option<String> {
-        let result = handle_hotkey_inner(clipboard, cycle);
+        let result = handle_hotkey_inner(clipboard, cycle, hotkey_vk);
         // Guarantee Ctrl and Alt are released regardless of which path was taken.
         // Without this, apps like VS Code see subsequent keypresses as Ctrl+Alt+X
         // shortcuts because the synthetic modifiers from SendInput stay "pressed".
@@ -413,6 +384,7 @@ mod win {
     fn handle_hotkey_inner(
         clipboard: &mut arboard::Clipboard,
         cycle: &mut Option<CycleState>,
+        hotkey_vk: u32,
     ) -> Option<String> {
         // ── Cycle mode ───────────────────────────────────────────────────────
         if let Some(state) = cycle.as_mut() {
@@ -516,7 +488,7 @@ mod win {
 
         if paste_preserving_clipboard(clipboard, &candidates[0], restore_clipboard_to.as_deref()) {
             if ime == "bopomofo-daqian" {
-                switch_ime_to_chinese();
+                switch_ime_to_chinese(hotkey_vk);
             }
             let orig = truncate(&text, 25);
             let fixed = truncate(&candidates[0], 25);
@@ -549,6 +521,9 @@ mod win {
     // ── Entry point ──────────────────────────────────────────────────────────
 
     pub fn run() {
+        let cfg = migao::config::load();
+        let hotkey = migao::config::normalized_hotkey_or_default(&cfg.hotkey);
+        let active_tooltip = format!("migao-watch — {} to fix", hotkey.label);
         unsafe {
             MAIN_THREAD_ID.store(GetCurrentThreadId(), Ordering::SeqCst);
             SetConsoleCtrlHandler(Some(ctrl_handler), TRUE);
@@ -557,10 +532,13 @@ mod win {
                 std::ptr::null_mut(),
                 HOTKEY_ID,
                 (MOD_CONTROL | MOD_ALT) as u32,
-                VK_R,
+                hotkey.key_code,
             ) != TRUE
             {
-                eprintln!("migao-watch: failed to register Ctrl+Alt+R (already in use?)");
+                eprintln!(
+                    "migao-watch: failed to register {} (already in use?)",
+                    hotkey.label
+                );
                 std::process::exit(1);
             }
         }
@@ -570,7 +548,13 @@ mod win {
             MenuItem::new(format!("migao v{}", env!("CARGO_PKG_VERSION")), false, None);
         let sep_top = PredefinedMenuItem::separator();
         let pause_item = MenuItem::new("Pause", true, None);
-        let login_item = CheckMenuItem::new("Launch at Login", true, is_autostart_enabled(), None);
+        let login_item = CheckMenuItem::new(
+            "Launch at Login",
+            true,
+            migao::config::is_autostart_enabled(),
+            None,
+        );
+        let command_item = MenuItem::new("Open Migao Command", true, None);
         let update_item = MenuItem::new("Check for Updates", true, None);
         let report_item = MenuItem::new("Report Issue", true, None);
         let exit_item = MenuItem::new("Exit", true, None);
@@ -581,6 +565,7 @@ mod win {
             &sep_top,
             &pause_item,
             &login_item,
+            &command_item,
             &update_item,
             &report_item,
             &sep,
@@ -589,13 +574,14 @@ mod win {
         .expect("menu setup failed");
         let tray: TrayIcon = TrayIconBuilder::new()
             .with_icon(make_icon(IconState::Active))
-            .with_tooltip("migao-watch — Ctrl+Alt+R to fix")
+            .with_tooltip(&active_tooltip)
             .with_menu(Box::new(menu))
             .build()
             .expect("failed to create tray icon");
 
         let pause_id = pause_item.id().clone();
         let login_id = login_item.id().clone();
+        let command_id = command_item.id().clone();
         let update_id = update_item.id().clone();
         let report_id = report_item.id().clone();
         let exit_id = exit_item.id().clone();
@@ -604,6 +590,7 @@ mod win {
         let (tx, rx) = mpsc::channel::<()>();
         let notif_slot: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
         let notif_writer = Arc::clone(&notif_slot);
+        let hotkey_vk = hotkey.key_code;
 
         thread::spawn(move || {
             // Pre-warm dictionaries and neural reranker before the first hotkey press.
@@ -616,7 +603,7 @@ mod win {
 
             for () in rx {
                 thread::sleep(Duration::from_millis(60));
-                if let Some(summary) = handle_hotkey(&mut clipboard, &mut cycle) {
+                if let Some(summary) = handle_hotkey(&mut clipboard, &mut cycle, hotkey_vk) {
                     *notif_writer.lock().unwrap() = Some(summary);
                     let tid = MAIN_THREAD_ID.load(Ordering::SeqCst);
                     unsafe { PostThreadMessageW(tid, WM_NOTIFY, 0, 0) };
@@ -624,7 +611,10 @@ mod win {
             }
         });
 
-        eprintln!("migao-watch running. Right-click the tray icon to pause or exit.");
+        eprintln!(
+            "migao-watch running. Press {} or right-click the tray icon.",
+            hotkey.label
+        );
 
         // ── Message loop ─────────────────────────────────────────────────────
         let mut should_quit = false;
@@ -652,7 +642,7 @@ mod win {
                     tray.set_tooltip(Some(if PAUSED.load(Ordering::Relaxed) {
                         "migao-watch — paused"
                     } else {
-                        "migao-watch — Ctrl+Alt+R to fix"
+                        &active_tooltip
                     }))
                     .ok();
                 } else if msg.message == WM_TIMER && msg.wParam == TIMER_ICON_KEEPALIVE {
@@ -691,9 +681,14 @@ mod win {
                             ])
                             .spawn()
                             .ok();
+                    } else if event.id == command_id {
+                        std::process::Command::new("cmd")
+                            .args(["/c", "start", "", "cmd", "/k", "migao status"])
+                            .spawn()
+                            .ok();
                     } else if event.id == login_id {
-                        let enable = !is_autostart_enabled();
-                        set_autostart(enable);
+                        let enable = !migao::config::is_autostart_enabled();
+                        migao::config::set_autostart_enabled(enable).ok();
                         login_item.set_checked(enable);
                     } else if event.id == pause_id {
                         let now_paused = !PAUSED.load(Ordering::Relaxed);
@@ -710,7 +705,7 @@ mod win {
                         tray.set_tooltip(Some(if now_paused {
                             "migao-watch — paused"
                         } else {
-                            "migao-watch — Ctrl+Alt+R to fix"
+                            &active_tooltip
                         }))
                         .ok();
                         if now_paused {

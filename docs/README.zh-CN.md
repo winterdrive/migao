@@ -60,7 +60,14 @@ migao fix "su3cl3"           # 你好
 migao fix "5j/ eji6"         # 中国
 migao fix --top 3 "su3cl3"   # 显示多个候选
 migao list                   # 列出支持的 IME
+migao status                 # 显示版本、设定路径和 watch 状态
+migao config                 # 显示目前设定
+migao config set hotkey Ctrl+Alt+K
+migao watch autostart on     # 开启开机自启
+migao watch autostart off    # 关闭开机自启
 ```
+
+快捷键设定目前支援 `Ctrl+Alt+<A-Z>`，Windows 上会储存在 `%APPDATA%\Migao\config.toml`。
 
 ## 支持的输入法
 

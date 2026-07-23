@@ -1,4 +1,5 @@
 pub mod bigram;
+pub mod config;
 pub mod dict;
 pub mod ime;
 pub mod pinyin_dict;
