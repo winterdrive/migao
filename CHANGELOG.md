@@ -6,6 +6,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-07-25
+
+### Changed
+
+- **CLI management guidance** — `migao --help`, `migao status`, and management subcommand help now show concrete next-step commands, hotkey format guidance, and tray entry-point hints so users can discover the v1.0.3 management surface without reading the README first.
+- **Release notes guidance** — future GitHub Releases now mention `migao status`, `migao config`, `migao watch autostart`, and the full tray menu including **Open Migao Command**.
+
 ## [1.0.3] - 2026-07-25
 
 ### Added
