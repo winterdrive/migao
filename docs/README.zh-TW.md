@@ -92,6 +92,9 @@ cargo build --release
 
 - **Pause / Resume** — 暫停或恢復快捷鍵，不需要退出程式
 - **Launch at Login** — 設定開機自動啟動（寫入 Windows 登錄檔）
+- **Open Migao Command** — 開啟終端機並執行 `migao status`
+- **Check for Updates** — 開啟最新 GitHub release
+- **Report Issue** — 開啟 GitHub issue 表單
 - **Exit** — 清理資源後完全退出
 
 ### 系統匣 Tooltip 回饋
@@ -155,6 +158,18 @@ Supported IME identifiers:
   bopomofo-daqian  (aliases: zhuyin, 注音)  — 大千標準注音鍵盤
   pinyin           (alias: 拼音)             — 全拼（標準 QWERTY）
 ```
+
+### 管理 Migao
+
+```sh
+migao status
+migao config
+migao config set hotkey Ctrl+Alt+K
+migao watch autostart on
+migao watch autostart off
+```
+
+`migao status` 會顯示版本、設定檔路徑、預設輸入法、快捷鍵、開機自動啟動狀態，以及 `migao-watch` 的基本提示。快捷鍵設定目前支援 `Ctrl+Alt+<A-Z>`，Windows 上會儲存在 `%APPDATA%\Migao\config.toml`。
 
 ---
 

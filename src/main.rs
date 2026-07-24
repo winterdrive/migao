@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use std::io::{self, IsTerminal, Read, Write};
 
 #[derive(Parser)]
@@ -25,6 +25,18 @@ enum Commands {
     },
     /// List supported IME identifiers
     List,
+    /// Show install, config, and watcher status
+    Status,
+    /// Show or update Migao configuration
+    Config {
+        #[command(subcommand)]
+        command: Option<ConfigCommand>,
+    },
+    /// Manage migao-watch settings
+    Watch {
+        #[command(subcommand)]
+        command: WatchCommand,
+    },
     /// Record a correction to improve future results
     ///
     /// Example: migao report "1p4w1" "版本"
@@ -38,6 +50,32 @@ enum Commands {
         /// The correct Chinese text (e.g. "版本")
         correct: String,
     },
+}
+
+#[derive(Subcommand)]
+enum ConfigCommand {
+    /// Update one supported config key
+    Set {
+        /// Config key. Currently supported: hotkey
+        key: String,
+        /// New config value
+        value: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum WatchCommand {
+    /// Enable or disable Launch at Login
+    Autostart {
+        /// Desired autostart state
+        state: ToggleState,
+    },
+}
+
+#[derive(Clone, ValueEnum)]
+enum ToggleState {
+    On,
+    Off,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -103,6 +141,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("  pinyin           (alias: 拼音)             — 全拼（標準 QWERTY）");
         }
 
+        Commands::Status => print_status(),
+
+        Commands::Config { command } => match command {
+            None => print_config(),
+            Some(ConfigCommand::Set { key, value }) => set_config_value(&key, &value)?,
+        },
+
+        Commands::Watch { command } => match command {
+            WatchCommand::Autostart { state } => {
+                let enable = matches!(state, ToggleState::On);
+                migao::config::set_autostart_enabled(enable)?;
+                println!(
+                    "migao-watch Launch at Login: {}",
+                    if enable { "on" } else { "off" }
+                );
+            }
+        },
+
         Commands::Report { garbled, correct } => {
             use migao::ime::daqian::{self, Segment};
 
@@ -142,4 +198,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
+}
+
+fn print_status() {
+    let cfg = migao::config::load();
+    let hotkey = migao::config::normalized_hotkey_or_default(&cfg.hotkey);
+    println!("Migao v{}", env!("CARGO_PKG_VERSION"));
+    println!("Config: {}", config_path_display());
+    println!("Default IME: {}", cfg.default_ime);
+    println!("Hotkey: {}", hotkey.label);
+    println!(
+        "Launch at Login: {}",
+        if migao::config::is_autostart_enabled() {
+            "on"
+        } else if cfg!(windows) {
+            "off"
+        } else {
+            "unsupported on this platform"
+        }
+    );
+    if cfg!(windows) {
+        println!("Watcher: launch Migao Watch from Start Menu or run migao-watch");
+    } else {
+        println!("Watcher: migao-watch is currently Windows-only");
+    }
+}
+
+fn print_config() {
+    let cfg = migao::config::load();
+    let hotkey = migao::config::normalized_hotkey_or_default(&cfg.hotkey);
+    println!("Config: {}", config_path_display());
+    println!("hotkey = \"{}\"", hotkey.label);
+    println!("default_ime = \"{}\"", cfg.default_ime);
+}
+
+fn set_config_value(key: &str, value: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let mut cfg = migao::config::load();
+    match key {
+        "hotkey" => {
+            let hotkey = migao::config::parse_hotkey(value)?;
+            cfg.hotkey = hotkey.label;
+            migao::config::save(&cfg)?;
+            println!("hotkey = \"{}\"", cfg.hotkey);
+        }
+        _ => {
+            eprintln!(
+                "migao: unsupported config key '{}'. Supported keys: hotkey",
+                key
+            );
+            std::process::exit(2);
+        }
+    }
+    Ok(())
+}
+
+fn config_path_display() -> String {
+    migao::config::config_path()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "(unavailable)".to_string())
 }

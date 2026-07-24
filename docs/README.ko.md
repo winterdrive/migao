@@ -62,7 +62,14 @@ migao fix "su3cl3"           # 你好
 migao fix "5j/ eji6"         # 中國
 migao fix --top 3 "su3cl3"   # multiple candidates
 migao list                   # supported IMEs
+migao status                 # version, config path, watcher status
+migao config                 # current config
+migao config set hotkey Ctrl+Alt+K
+migao watch autostart on     # enable Launch at Login
+migao watch autostart off    # disable Launch at Login
 ```
+
+Hotkey configuration currently supports `Ctrl+Alt+<A-Z>` and is stored in `%APPDATA%\Migao\config.toml` on Windows.
 
 ## Supported IMEs
 

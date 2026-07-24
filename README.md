@@ -88,6 +88,9 @@ Right-click for the context menu:
 
 - **Pause / Resume** — suspend or re-enable the hotkey without exiting
 - **Launch at Login** — toggle Windows auto-start (writes to `HKCU\...\Run`)
+- **Open Migao Command** — open a terminal with `migao status`
+- **Check for Updates** — open the latest GitHub release
+- **Report Issue** — open the GitHub issue form
 - **Exit** — unregisters the hotkey and removes the tray icon cleanly
 
 ### Tray tooltip feedback
@@ -152,6 +155,18 @@ Supported IME identifiers:
   bopomofo-daqian  (aliases: zhuyin, 注音)  — 大千標準注音鍵盤
   pinyin           (alias: 拼音)             — 全拼（標準 QWERTY）
 ```
+
+### Manage Migao
+
+```sh
+migao status
+migao config
+migao config set hotkey Ctrl+Alt+K
+migao watch autostart on
+migao watch autostart off
+```
+
+`migao status` shows the installed version, config file path, default IME, hotkey, Launch at Login state, and watcher guidance. The hotkey config currently supports `Ctrl+Alt+<A-Z>` and is stored in `%APPDATA%\Migao\config.toml` on Windows.
 
 ## How it works
 
