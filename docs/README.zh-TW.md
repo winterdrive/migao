@@ -169,7 +169,11 @@ migao watch autostart on
 migao watch autostart off
 ```
 
-`migao status` 會顯示版本、設定檔路徑、預設輸入法、快捷鍵、開機自動啟動狀態，以及 `migao-watch` 的基本提示。快捷鍵設定目前支援 `Ctrl+Alt+<A-Z>`，Windows 上會儲存在 `%APPDATA%\Migao\config.toml`。
+`migao status` 會顯示版本、設定檔路徑、預設輸入法、快捷鍵、開機自動啟動狀態，以及 `migao-watch` 的基本提示。它也會列出下一步可用的管理指令，所以排查設定時可以先從這裡開始。
+
+Windows 系統匣選單的 **Open Migao Command** 會開啟終端機並執行 `migao status`。
+
+快捷鍵設定目前支援 `Ctrl+Alt+<A-Z>`，Windows 上會儲存在 `%APPDATA%\Migao\config.toml`。修改快捷鍵後需要重新啟動 `migao-watch`。
 
 ---
 
