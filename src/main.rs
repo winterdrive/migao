@@ -2,7 +2,17 @@ use clap::{Parser, Subcommand, ValueEnum};
 use std::io::{self, IsTerminal, Read, Write};
 
 #[derive(Parser)]
-#[command(name = "migao", about = "IME garbled text recovery — 翻譯米糕")]
+#[command(
+    name = "migao",
+    about = "IME garbled text recovery — 翻譯米糕",
+    after_help = "Examples:
+  migao fix \"su3cl3\"
+  migao status
+  migao config set hotkey Ctrl+Alt+K
+  migao watch autostart on
+
+From the Windows tray menu, choose \"Open Migao Command\" to open this management entry point."
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -25,14 +35,25 @@ enum Commands {
     },
     /// List supported IME identifiers
     List,
-    /// Show install, config, and watcher status
+    /// Show install, config, watcher status, and next commands to try
     Status,
     /// Show or update Migao configuration
+    #[command(after_help = "Examples:
+  migao config
+  migao config set hotkey Ctrl+Alt+K
+
+Supported hotkey format: Ctrl+Alt+<A-Z>
+Restart migao-watch after changing the hotkey.")]
     Config {
         #[command(subcommand)]
         command: Option<ConfigCommand>,
     },
     /// Manage migao-watch settings
+    #[command(after_help = "Examples:
+  migao watch autostart on
+  migao watch autostart off
+
+Autostart controls the same Launch at Login setting shown in the Windows tray menu.")]
     Watch {
         #[command(subcommand)]
         command: WatchCommand,
@@ -55,6 +76,12 @@ enum Commands {
 #[derive(Subcommand)]
 enum ConfigCommand {
     /// Update one supported config key
+    #[command(after_help = "Examples:
+  migao config set hotkey Ctrl+Alt+K
+  migao config set hotkey Ctrl+Alt+R
+
+Supported keys:
+  hotkey    Ctrl+Alt+<A-Z>; restart migao-watch after changing it.")]
     Set {
         /// Config key. Currently supported: hotkey
         key: String,
@@ -222,6 +249,18 @@ fn print_status() {
     } else {
         println!("Watcher: migao-watch is currently Windows-only");
     }
+    println!();
+    println!("Try:");
+    println!("  migao config");
+    println!("  migao config set hotkey Ctrl+Alt+K");
+    println!("  migao watch autostart on");
+    println!("  migao watch autostart off");
+    if cfg!(windows) {
+        println!();
+        println!(
+            "Tray: right-click Migao Watch and choose Open Migao Command to reopen this view."
+        );
+    }
 }
 
 fn print_config() {
@@ -240,6 +279,7 @@ fn set_config_value(key: &str, value: &str) -> Result<(), Box<dyn std::error::Er
             cfg.hotkey = hotkey.label;
             migao::config::save(&cfg)?;
             println!("hotkey = \"{}\"", cfg.hotkey);
+            println!("Restart migao-watch for the new hotkey to take effect.");
         }
         _ => {
             eprintln!(

@@ -138,7 +138,19 @@ jobs:
             migao fix "5j/ eji6"       # → 中國
             echo "su3cl3" | migao fix  # pipe 模式
             migao list                 # 列出支援的 IME
+            migao status               # 檢查版本、設定路徑、快捷鍵與開機自動啟動狀態
             ```
+
+            ### 管理設定
+            ```
+            migao status
+            migao config
+            migao config set hotkey Ctrl+Alt+K
+            migao watch autostart on
+            migao watch autostart off
+            ```
+
+            `migao status` 會列出下一步可用的管理指令。快捷鍵目前支援 `Ctrl+Alt+<A-Z>`；修改後請重新啟動 `migao-watch`。
 
             ### migao-watch（Windows 常駐背景程式）
             安裝後自動啟動，也可從開始選單 `Migao > Migao Watch` 手動啟動。系統匣出現綠色圓圈圖示代表運行中。
@@ -149,7 +161,9 @@ jobs:
             3. Ctrl+Alt+R → 自動修正為正確中文
             4. 3 秒內再按 Ctrl+Alt+R → 循環切換備選答案
 
-            **系統匣右鍵選單：** Pause / Resume · Launch at Login · Exit
+            **系統匣右鍵選單：** Pause / Resume · Launch at Login · Open Migao Command · Check for Updates · Report Issue · Exit
+
+            點 **Open Migao Command** 會開啟終端機並執行 `migao status`，可直接查看設定與可用管理指令。
           files: |
             migao-windows-x64.zip
             migao-macos-arm64.tar.gz

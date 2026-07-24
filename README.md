@@ -166,7 +166,11 @@ migao watch autostart on
 migao watch autostart off
 ```
 
-`migao status` shows the installed version, config file path, default IME, hotkey, Launch at Login state, and watcher guidance. The hotkey config currently supports `Ctrl+Alt+<A-Z>` and is stored in `%APPDATA%\Migao\config.toml` on Windows.
+`migao status` shows the installed version, config file path, default IME, hotkey, Launch at Login state, and watcher guidance. It also prints the next management commands to try, so it is the best first stop when troubleshooting.
+
+From the Windows tray menu, **Open Migao Command** opens a terminal and runs `migao status`.
+
+The hotkey config currently supports `Ctrl+Alt+<A-Z>` and is stored in `%APPDATA%\Migao\config.toml` on Windows. Restart `migao-watch` after changing the hotkey.
 
 ## How it works
 
