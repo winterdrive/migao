@@ -598,7 +598,32 @@ mod win {
             let _ = migao::recover_top_n("su3cl3", "english-from-bopomofo", 1);
             migao::reranker::init();
 
-            let mut clipboard = arboard::Clipboard::new().expect("clipboard init failed");
+            // Windows clipboard access can fail transiently at startup (e.g. another
+            // process — a screenshot tool, clipboard manager — briefly holds the
+            // clipboard lock). Retry instead of panicking, which would silently kill
+            // this thread and leave the hotkey permanently unresponsive.
+            const CLIPBOARD_INIT_RETRIES: u32 = 5;
+            let mut clipboard = {
+                let mut attempt = 0;
+                loop {
+                    match arboard::Clipboard::new() {
+                        Ok(c) => break c,
+                        Err(e) if attempt < CLIPBOARD_INIT_RETRIES => {
+                            attempt += 1;
+                            eprintln!(
+                                "migao-watch: clipboard init failed ({e}); retrying ({attempt}/{CLIPBOARD_INIT_RETRIES})..."
+                            );
+                            thread::sleep(Duration::from_millis(200));
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "migao-watch: clipboard unavailable after {CLIPBOARD_INIT_RETRIES} retries ({e}); hotkey disabled."
+                            );
+                            return;
+                        }
+                    }
+                }
+            };
             let mut cycle: Option<CycleState> = None;
 
             for () in rx {
