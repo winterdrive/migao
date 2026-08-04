@@ -185,8 +185,7 @@ pub fn segment(input: &str) -> Vec<Segment> {
             } else {
                 result.push(Segment::Passthrough(' '));
             }
-        } else if is_zhuyin_key(ch) {
-            let cat = key_category(ch).unwrap();
+        } else if let Some(cat) = key_category(ch) {
             // Auto-terminate when a new Initial arrives after the buffer already holds a
             // Medial. In valid 大千 input this signals a new syllable; restricting to
             // Initial-after-Medial (not Initial-after-Final) preserves English passthrough
