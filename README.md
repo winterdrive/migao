@@ -152,8 +152,9 @@ migao list
 
 ```text
 Supported IME identifiers:
-  bopomofo-daqian  (aliases: zhuyin, 注音)  — 大千標準注音鍵盤
-  pinyin           (alias: 拼音)             — 全拼（標準 QWERTY）
+  bopomofo-daqian       (aliases: zhuyin, 注音)  — 大千標準注音鍵盤
+  pinyin                (alias: 拼音)             — 全拼（標準 QWERTY）
+  english-from-bopomofo (alias: reverse)          — 注音符號 → 原始英文按鍵
 ```
 
 ### Manage Migao
