@@ -225,3 +225,112 @@ pub fn decode_candidates(
     candidates.truncate(n);
     candidates.into_iter().map(|(_, s)| s).collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_dict(entries: &[(&str, &[(&str, u32)])]) -> HashMap<String, Vec<(String, u32)>> {
+        entries
+            .iter()
+            .map(|(k, vs)| {
+                (
+                    k.to_string(),
+                    vs.iter().map(|(w, f)| (w.to_string(), *f)).collect(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_best_entry_picks_highest_frequency() {
+        let dict = make_dict(&[("a", &[("x", 1), ("y", 5), ("z", 3)])]);
+        assert_eq!(best_entry(&dict, "a"), Some(("y", 5)));
+    }
+
+    #[test]
+    fn test_best_entry_missing_key() {
+        let dict = make_dict(&[("a", &[("x", 1)])]);
+        assert_eq!(best_entry(&dict, "missing"), None);
+    }
+
+    #[test]
+    fn test_decode_empty_input() {
+        let dict = HashMap::new();
+        assert_eq!(decode(&[], &dict), String::new());
+    }
+
+    #[test]
+    fn test_decode_single_syllable_lookup() {
+        let dict = make_dict(&[("ma", &[("媽", 10)])]);
+        let syllables = vec!["ma".to_string()];
+        assert_eq!(decode(&syllables, &dict), "媽");
+    }
+
+    #[test]
+    fn test_decode_compound_beats_split_with_bonus() {
+        // "ni" + "hao" scored individually is far below the compound entry
+        // "nihao" once COMPOUND_BONUS is applied to the two-syllable span.
+        let dict = make_dict(&[
+            ("ni", &[("你", 100)]),
+            ("hao", &[("好", 100)]),
+            ("nihao", &[("你好", 100)]),
+        ]);
+        let syllables = vec!["ni".to_string(), "hao".to_string()];
+        assert_eq!(decode(&syllables, &dict), "你好");
+    }
+
+    #[test]
+    fn test_decode_falls_back_to_raw_syllable_when_unknown() {
+        let dict = make_dict(&[("known", &[("知", 5)])]);
+        let syllables = vec!["known".to_string(), "unknown".to_string()];
+        assert_eq!(decode(&syllables, &dict), "知unknown");
+    }
+
+    #[test]
+    fn test_decode_candidates_zero_returns_empty() {
+        let dict = HashMap::new();
+        assert!(decode_candidates(0, &[], &[], &dict).is_empty());
+    }
+
+    #[test]
+    fn test_decode_candidates_empty_syllables_returns_empty() {
+        let dict = HashMap::new();
+        assert!(decode_candidates(3, &[], &[], &dict).is_empty());
+    }
+
+    #[test]
+    fn test_decode_candidates_returns_best_first_and_alternatives() {
+        let dict = make_dict(&[("ma", &[("媽", 10), ("嗎", 5), ("罵", 2)])]);
+        let syllables = vec!["ma".to_string()];
+        let candidates = decode_candidates(3, &syllables, &[], &dict);
+        assert_eq!(
+            candidates,
+            vec!["媽".to_string(), "嗎".to_string(), "罵".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_decode_candidates_single_n_returns_only_best() {
+        let dict = make_dict(&[("ma", &[("媽", 10), ("嗎", 5)])]);
+        let syllables = vec!["ma".to_string()];
+        assert_eq!(
+            decode_candidates(1, &syllables, &[], &dict),
+            vec!["媽".to_string()]
+        );
+    }
+
+    #[test]
+    fn test_strip_tone_removes_known_tone_marks() {
+        assert_eq!(strip_tone("maˊ"), "ma");
+        assert_eq!(strip_tone("maˇ"), "ma");
+        assert_eq!(strip_tone("maˋ"), "ma");
+        assert_eq!(strip_tone("ma˙"), "ma");
+        assert_eq!(strip_tone("maˉ"), "ma");
+    }
+
+    #[test]
+    fn test_strip_tone_no_tone_marker_unchanged() {
+        assert_eq!(strip_tone("ma"), "ma");
+    }
+}
