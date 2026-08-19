@@ -164,8 +164,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         Commands::List => {
             println!("Supported IME identifiers:");
-            println!("  bopomofo-daqian  (aliases: zhuyin, 注音)  — 大千標準注音鍵盤");
-            println!("  pinyin           (alias: 拼音)             — 全拼（標準 QWERTY）");
+            println!("  bopomofo-daqian       (aliases: zhuyin, 注音)  — 大千標準注音鍵盤");
+            println!("  pinyin                (alias: 拼音)             — 全拼（標準 QWERTY）");
+            println!("  english-from-bopomofo (alias: reverse)          — 注音符號 → 原始英文按鍵");
         }
 
         Commands::Status => print_status(),
