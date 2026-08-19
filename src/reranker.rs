@@ -116,15 +116,14 @@ impl Reranker {
                 continue;
             }
 
-            let row = logits
+            let row: Vec<f32> = logits
                 .index_axis(Axis(0), 0) // remove batch dim
                 .index_axis(Axis(0), mask_pos) // position we masked
-                .to_owned();
+                .iter()
+                .cloned()
+                .collect();
 
-            let max_logit = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-            let exp_sum: f32 = row.iter().map(|&x| (x - max_logit).exp()).sum();
-            let log_prob = (row[target_id] - max_logit) - exp_sum.ln();
-            total_log_prob += log_prob;
+            total_log_prob += masked_log_prob(&row, target_id);
         }
 
         -(total_log_prob / content_len as f32)
@@ -176,4 +175,40 @@ pub fn global() -> &'static Option<Reranker> {
 /// Pre-warm the reranker at startup (call from background thread).
 pub fn init() {
     let _ = global();
+}
+
+/// Softmax log-probability of `target_id` within one masked-position's logit row.
+///
+/// Returns the same fixed penalty as the UNK-token case if `target_id` is out
+/// of bounds for `row` — this can happen if a `vocab.txt` is paired with an
+/// incompatible model whose output vocab dimension is smaller, which would
+/// otherwise panic on out-of-bounds indexing.
+fn masked_log_prob(row: &[f32], target_id: usize) -> f32 {
+    if target_id >= row.len() {
+        return -20.0;
+    }
+    let max_logit = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    let exp_sum: f32 = row.iter().map(|&x| (x - max_logit).exp()).sum();
+    (row[target_id] - max_logit) - exp_sum.ln()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn masked_log_prob_out_of_bounds_target_returns_unk_penalty() {
+        let row = [0.1_f32, 0.2, 0.3];
+        assert_eq!(masked_log_prob(&row, 10), -20.0);
+    }
+
+    #[test]
+    fn masked_log_prob_in_bounds_target_is_negative_log_softmax() {
+        let row = [1.0_f32, 2.0, 3.0];
+        let score = masked_log_prob(&row, 2);
+        // Highest logit should have the smallest (least negative) penalty.
+        let lower = masked_log_prob(&row, 0);
+        assert!(score > lower);
+        assert!(score <= 0.0);
+    }
 }
