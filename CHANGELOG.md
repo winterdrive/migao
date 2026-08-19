@@ -6,6 +6,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-08-19
+
+### Added
+
+- **Real update check** — `migao-watch`'s "Check for Updates" tray item now queries GitHub for the latest release and compares against the running version, instead of just opening the releases page. Offers to update in place (reusing `install.ps1`) when a newer version is found; also runs the same check silently once at startup, only prompting when an update is actually available.
+
 ## [1.0.5] - 2026-08-19
 
 ### Fixed
