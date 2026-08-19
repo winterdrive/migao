@@ -165,9 +165,12 @@ migao config
 migao config set hotkey Ctrl+Alt+K
 migao watch autostart on
 migao watch autostart off
+migao report "1p4w1" "版本"
 ```
 
 `migao status` shows the installed version, config file path, default IME, hotkey, Launch at Login state, and watcher guidance. It also prints the next management commands to try, so it is the best first stop when troubleshooting.
+
+`migao report <garbled> <correct>` records a correction that Migao got wrong, so it's recovered correctly next time. To find the garbled form of a word, type it with your IME active but the keyboard layout in English mode, then select it and press Ctrl+Alt+R — the garbled keys appear in the tray tooltip before the arrow.
 
 From the Windows tray menu, **Open Migao Command** opens a terminal and runs `migao status`.
 

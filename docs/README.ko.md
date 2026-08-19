@@ -100,6 +100,7 @@ migao config                 # current config
 migao config set hotkey Ctrl+Alt+K
 migao watch autostart on     # enable Launch at Login
 migao watch autostart off    # disable Launch at Login
+migao report "1p4w1" "版本"  # record a correction Migao got wrong
 ```
 
 Hotkey configuration currently supports `Ctrl+Alt+<A-Z>` and is stored in `%APPDATA%\Migao\config.toml` on Windows.

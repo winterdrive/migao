@@ -168,9 +168,12 @@ migao config
 migao config set hotkey Ctrl+Alt+K
 migao watch autostart on
 migao watch autostart off
+migao report "1p4w1" "版本"
 ```
 
 `migao status` 會顯示版本、設定檔路徑、預設輸入法、快捷鍵、開機自動啟動狀態，以及 `migao-watch` 的基本提示。它也會列出下一步可用的管理指令，所以排查設定時可以先從這裡開始。
+
+`migao report <亂碼> <正確答案>` 用來回報 Migao 修正錯誤的案例，之後同樣的輸入就會直接命中。要找出某個詞的亂碼鍵序，可以在輸入法開啟、鍵盤切成英文模式的狀態下打出該詞，選取後按 Ctrl+Alt+R——亂碼鍵序會顯示在系統匣提示框的箭頭前面。
 
 Windows 系統匣選單的 **Open Migao Command** 會開啟終端機並執行 `migao status`。
 
