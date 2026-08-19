@@ -57,7 +57,10 @@ pub fn is_valid_syllable(s: &str) -> bool {
 /// Input is lowercased before matching. Apostrophes are silently dropped
 /// (standard pinyin syllable-onset marker: xi'an → [xi, an]).
 pub fn segment(input: &str) -> Vec<Segment> {
-    let lower = input.to_lowercase();
+    // ASCII-only lowercasing: syllables are pure ASCII, and unlike `to_lowercase()`
+    // this never changes a character's byte length (e.g. 'İ' U+0130 → "i̇" would
+    // desync the byte offsets tracked below and panic on a non-char-boundary slice).
+    let lower = input.to_ascii_lowercase();
     let s = lower.as_str();
     let original: Vec<char> = input.chars().collect();
 
@@ -187,5 +190,20 @@ mod tests {
         // "hello" → he (syl) + ll (pass) + o (syl): 3/5 = 0.6 — borderline
         // below 0.7 threshold used by PinyinRule
         assert!(confidence("world") < 0.5);
+    }
+
+    #[test]
+    fn test_unicode_case_expanding_char_no_panic() {
+        // U+0130 (İ) expands to two chars ("i̇") under full Unicode lowercasing,
+        // which used to desync byte offsets and panic on a non-char-boundary slice.
+        let segs = segment("aİe");
+        assert_eq!(
+            segs,
+            vec![
+                Segment::Syllable("a".into()),
+                Segment::Passthrough('İ'),
+                Segment::Syllable("e".into()),
+            ]
+        );
     }
 }
