@@ -53,6 +53,39 @@ irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex
 
 手动启动不需要保持 PowerShell 窗口开启。
 
+### 系统托盘图标
+
+任务栏通知区域会出现一个像素风的米糕图标：
+
+| 图标 | 含义 |
+|------|------|
+| 彩色 | 活跃 — 快捷键监听中 |
+| 灰色 | 暂停 — 快捷键已停用 |
+
+右键点击打开菜单：
+
+- **Pause / Resume** — 暂停或重新启用快捷键，不用退出程序
+- **Launch at Login** — 切换开机自动启动（写入 `HKCU\...\Run`）
+- **Open Migao Command** — 打开终端并执行 `migao status`
+- **Check for Updates** — 向 GitHub 查询是否有新版本，有的话会问要不要直接安装（查询本身失败时退回打开 releases 页面）；开机时也会静默检查一次，只有真的有新版才会弹出提示
+- **Report Issue** — 打开 GitHub issue 表单
+- **Exit** — 注销快捷键并彻底移除托盘图标
+
+### 托盘提示反馈
+
+每次修正后，提示框会短暂显示改动内容：
+
+```text
+✓  su3cl3 → 你好
+```
+
+切换候选答案时：
+
+```text
+Candidate 2/3: 你好嗎
+Reverted to original
+```
+
 ## CLI
 
 ```sh

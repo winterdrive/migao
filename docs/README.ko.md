@@ -55,6 +55,39 @@ Alternatives: **CLI pipe** `pbpaste | migao fix | pbcopy` (macOS) / `xclip -o | 
 
 수동으로 실행해도 PowerShell window를 계속 열어 둘 필요는 없습니다.
 
+### 트레이 아이콘
+
+작업 표시줄 알림 영역에 픽셀 아트 떡 아이콘이 나타납니다:
+
+| 아이콘 | 의미 |
+|------|------|
+| 컬러 | 활성 — 단축키 대기 중 |
+| 회색 | 일시정지 — 단축키 비활성화 |
+
+우클릭하면 컨텍스트 메뉴가 나타납니다:
+
+- **Pause / Resume** — 종료하지 않고 단축키를 일시정지·재개
+- **Launch at Login** — Windows 자동 시작 전환（`HKCU\...\Run`에 기록）
+- **Open Migao Command** — `migao status`를 실행하는 터미널 열기
+- **Check for Updates** — GitHub에서 새 릴리스를 확인하고 있으면 바로 설치할지 묻는다（확인 자체가 실패하면 릴리스 페이지를 연다）. 시작 시에도 한 번 조용히 확인하며 업데이트가 있을 때만 알린다
+- **Report Issue** — GitHub 이슈 양식 열기
+- **Exit** — 단축키를 해제하고 트레이 아이콘을 깔끔하게 제거
+
+### 트레이 툴팁 피드백
+
+수정할 때마다 툴팁에 변경 내용이 잠시 표시됩니다:
+
+```text
+✓  su3cl3 → 你好
+```
+
+후보를 순환하는 동안:
+
+```text
+Candidate 2/3: 你好嗎
+Reverted to original
+```
+
 ## CLI
 
 ```sh
