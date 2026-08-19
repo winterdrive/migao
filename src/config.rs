@@ -102,13 +102,22 @@ pub fn save(cfg: &Config) -> std::io::Result<()> {
 }
 
 pub fn parse_hotkey(input: &str) -> Result<Hotkey, ConfigError> {
-    let parts: Vec<String> = input
-        .split('+')
+    // Split first and check the raw segment count before trimming: filtering
+    // empty segments beforehand would let malformed input like "Ctrl+Alt+R+"
+    // or "Ctrl++Alt+R" (which split into 4 raw segments, one blank) slip
+    // through as if it were the well-formed 3-segment form.
+    let raw_parts: Vec<&str> = input.split('+').collect();
+    if raw_parts.len() != 3 {
+        return Err(ConfigError::new(
+            "hotkey must use the form Ctrl+Alt+<A-Z>, for example Ctrl+Alt+R",
+        ));
+    }
+    let parts: Vec<String> = raw_parts
+        .iter()
         .map(|part| part.trim().to_ascii_uppercase())
-        .filter(|part| !part.is_empty())
         .collect();
 
-    if parts.len() != 3 || parts[0] != "CTRL" || parts[1] != "ALT" {
+    if parts.iter().any(|part| part.is_empty()) || parts[0] != "CTRL" || parts[1] != "ALT" {
         return Err(ConfigError::new(
             "hotkey must use the form Ctrl+Alt+<A-Z>, for example Ctrl+Alt+R",
         ));
@@ -214,5 +223,14 @@ mod tests {
         assert!(parse_hotkey("Ctrl+Shift+R").is_err());
         assert!(parse_hotkey("Ctrl+Alt+F12").is_err());
         assert!(parse_hotkey(DEFAULT_HOTKEY).is_ok());
+    }
+
+    #[test]
+    fn rejects_extra_plus_segments() {
+        // These used to slip through: filtering empty segments before counting
+        // meant a stray trailing/doubled '+' still left exactly 3 non-empty parts.
+        assert!(parse_hotkey("Ctrl+Alt+R+").is_err());
+        assert!(parse_hotkey("Ctrl++Alt+R").is_err());
+        assert!(parse_hotkey("+Ctrl+Alt+R").is_err());
     }
 }
