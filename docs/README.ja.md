@@ -55,6 +55,39 @@ Alternatives: **CLI pipe** `pbpaste | migao fix | pbcopy` (macOS) / `xclip -o | 
 
 手動起動しても PowerShell window を開いたままにする必要はありません。
 
+### トレイアイコン
+
+タスクバー通知領域にドット絵のお米アイコンが表示されます：
+
+| アイコン | 意味 |
+|------|------|
+| カラー | アクティブ — ホットキー待機中 |
+| グレー | 一時停止 — ホットキー無効 |
+
+右クリックでコンテキストメニューを表示：
+
+- **Pause / Resume** — 終了せずにホットキーを一時停止・再開
+- **Launch at Login** — Windows 自動起動の切り替え（`HKCU\...\Run` に書き込み）
+- **Open Migao Command** — `migao status` を実行するターミナルを開く
+- **Check for Updates** — GitHub で新しいリリースを確認し、あれば直接インストールするか尋ねる（確認自体が失敗した場合はリリースページを開く）。起動時にも一度静かに確認し、更新がある場合のみ通知する
+- **Report Issue** — GitHub の issue フォームを開く
+- **Exit** — ホットキーを解除し、トレイアイコンをきれいに削除する
+
+### トレイのツールチップ通知
+
+修正のたびに、変更内容がツールチップに一瞬表示されます：
+
+```text
+✓  su3cl3 → 你好
+```
+
+候補を切り替えているとき：
+
+```text
+Candidate 2/3: 你好嗎
+Reverted to original
+```
+
 ## CLI
 
 ```sh
