@@ -19,3 +19,46 @@ pub trait Rule: Send + Sync {
         self.apply(input).into_iter().collect()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Minimal Rule that does not override `apply_top_n`, so tests here
+    /// exercise the trait's default implementation directly.
+    struct AlwaysMatch;
+
+    impl Rule for AlwaysMatch {
+        fn name(&self) -> &str {
+            "always-match"
+        }
+
+        fn apply(&self, input: &str) -> Option<String> {
+            if input.is_empty() {
+                None
+            } else {
+                Some(input.to_uppercase())
+            }
+        }
+
+        fn confidence(&self, _input: &str) -> f32 {
+            1.0
+        }
+    }
+
+    #[test]
+    fn test_default_apply_top_n_zero_returns_empty() {
+        // n == 0 short-circuits before calling apply(), even for matching input.
+        assert_eq!(AlwaysMatch.apply_top_n("hi", 0), Vec::<String>::new());
+    }
+
+    #[test]
+    fn test_default_apply_top_n_delegates_to_apply() {
+        assert_eq!(AlwaysMatch.apply_top_n("hi", 5), vec!["HI".to_string()]);
+    }
+
+    #[test]
+    fn test_default_apply_top_n_none_returns_empty() {
+        assert_eq!(AlwaysMatch.apply_top_n("", 5), Vec::<String>::new());
+    }
+}
