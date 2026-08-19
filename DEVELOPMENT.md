@@ -67,9 +67,13 @@ Both are required to pass before merging.
 migao/
 ├── src/
 │   ├── lib.rs                  # Public API: recover(), recover_top_n()
-│   ├── main.rs                 # migao CLI (clap subcommands: fix, list)
+│   ├── main.rs                 # migao CLI (clap subcommands: fix, list, status, config, report)
+│   ├── config.rs               # config.toml load/save, hotkey parsing, autostart registration
+│   ├── user_data.rs            # `migao report` — appends corrections to the supplement dictionary
+│   ├── reranker.rs             # Neural reranker (bert-tiny-chinese ONNX) — PLH rescoring of top-N
+│   ├── tokenizer.rs            # Character-level BERT tokenizer for the reranker
 │   ├── bin/
-│   │   └── watch.rs            # migao-watch Windows daemon (tray icon, hotkey)
+│   │   └── watch.rs            # migao-watch Windows daemon (tray icon, hotkey, update check)
 │   ├── dict.rs                 # Zhuyin dictionary (OnceLock, 474 k entries)
 │   ├── pinyin_dict.rs          # Pinyin dictionary
 │   ├── bigram.rs               # Bigram language model
@@ -81,8 +85,11 @@ migao/
 │   │   ├── english_from_bopomofo.rs  # reverse rule (注音 → original English keys)
 │   │   └── pinyin.rs           # pinyin rule (全拼 → 漢字)
 │   └── ime/
+│       ├── mod.rs
 │       ├── daqian.rs           # Daqian key-to-Bopomofo mapping + segmenter
 │       └── pinyin.rs           # Pinyin syllable table + segmenter
+├── examples/
+│   └── ime_test.rs             # Ad-hoc manual IME testing example
 ├── data/
 │   ├── bopomofo.tsv            # Primary Zhuyin→word dictionary
 │   ├── supplement.tsv          # Manually curated overrides / compound fixes
@@ -94,7 +101,16 @@ migao/
 │   └── migao.ico                # Packaged into Windows release zip for Start Menu shortcut
 ├── scripts/
 │   ├── build_dict.py           # Rebuild dictionaries from upstream RIME sources
+│   ├── build_pinyin_dict.py    # Rebuild the Pinyin dictionary
+│   ├── build_bigram.py         # Rebuild the bigram frequency table
+│   ├── _gen_syllables.py       # Shared syllable-table generation helper
+│   ├── export_reranker.py      # Exports bert-tiny-chinese to ONNX for the reranker
 │   └── accuracy_gate.py        # Regression accuracy check
+├── tests/
+│   ├── accuracy/
+│   │   └── golden.tsv          # Canonical garbled→correct pairs used by accuracy_gate.py
+│   └── integration/
+│       └── test-watch.ps1      # migao-watch integration smoke test
 ├── docs/
 │   ├── index.html              # GitHub Pages landing page
 │   ├── llms.txt                # Short LLM-readable project index
@@ -111,6 +127,7 @@ migao/
 │       ├── ci.yml              # Tests + clippy + fmt + accuracy gate (on PR)
 │       └── release.yml         # Build all platforms + publish GitHub Release (on tag)
 ├── Cargo.toml
+├── Cargo.lock
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
 ├── I18N.md
@@ -133,6 +150,10 @@ migao/
 | `viterbi.rs` | DP decoder — `run_dp()` scores syllable sequences, `decode_candidates()` returns top-N |
 | `rule.rs` | `Rule` trait — `confidence()`, `apply()`, `apply_top_n()` |
 | `rules/bopomofo.rs` | Segments Daqian keys → Bopomofo → calls dict + Viterbi |
+| `config.rs` | Loads/saves `config.toml` (hotkey, autostart), `parse_hotkey()` validation |
+| `user_data.rs` | `migao report` — validates and appends corrections to the supplement dictionary |
+| `reranker.rs` | Neural reranker — masked PLH scoring via the bundled bert-tiny-chinese ONNX model |
+| `tokenizer.rs` | Character-level BERT tokenizer used by `reranker.rs` |
 
 ---
 

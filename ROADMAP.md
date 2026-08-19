@@ -76,6 +76,7 @@ Before prioritising features, we mapped the full user journey: **install → fir
 
 ### P3 — Nice to have
 
+- [ ] **UI display language** — see #31. Not to be confused with the "Language Expansion Analysis" below, which is about which *input method* languages Migao can recover (Korean, Pinyin, etc.), not what language the app's own interface is displayed in.
 - [ ] **Configurable hotkey** — stored in `%APPDATA%\Migao\config.toml`; changeable from tray menu without restart.
 - [ ] **Correction log** — rolling log of the last N corrections viewable from the tray menu.
 - [ ] **Korean 두벌식 IME rule** — highest-priority language expansion (see analysis below).
@@ -86,6 +87,8 @@ Before prioritising features, we mapped the full user journey: **install → fir
 ---
 
 ## Language Expansion Analysis
+
+This section is about which *input method* languages Migao can recover garbled text for (Korean, Pinyin, etc.) — not what language the app's own interface (CLI output, tray menu, message boxes) is displayed in. For that, see "UI display language" above and #31.
 
 Migao's recovery technique works when: (1) keyboard keys map deterministically to IME input, and (2) the garbled output is structurally distinguishable from plain English.
 
