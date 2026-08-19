@@ -6,6 +6,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-08-19
+
+### Fixed
+
+- **`migao-watch` clipboard init** — retries with a bounded backoff instead of panicking on transient clipboard-lock failures at startup, so a momentary OS clipboard contention no longer permanently disables the global hotkey (#16)
+- **pinyin `segment()` Unicode panic** — switched to `to_ascii_lowercase()` so a case-expanding Unicode character (e.g. `İ`) can no longer desync the byte cursor from the original string and panic on a non-char-boundary slice (#17)
+- **Hotkey config validation** — reject hotkey strings with extra/misplaced `+` segments (e.g. `Ctrl++Alt+R`, trailing `+`) that previously slipped past validation after empty segments were filtered out (#18)
+- **`migao` report entries** — reject tab/newline/carriage-return characters in reported corrections, closing a TSV line-injection path into the on-disk supplement dictionary (#19)
+- **daqian key segmentation** — removed a latent-risk `unwrap()` in favor of a single lookup table, preventing future divergence between two parallel key-category tables from causing a panic (#20)
+- **reranker out-of-bounds vocab id** — a vocab id beyond the logits row length (e.g. from a corrupted or version-mismatched vocab file) now falls back to the existing UNK penalty score instead of panicking (#23)
+- **Dictionary modernisation duplicate candidates** — 喫→吃 modernisation now bumps the frequency of an existing 吃 entry instead of always pushing a new one, eliminating duplicate 吃 candidates without affecting unrelated entries (#24)
+
+### Documentation
+
+- **`migao list`** — documented the existing `english-from-bopomofo`/`reverse` IME identifier, previously implemented but missing from the help text and README (#21)
+
+### Testing
+
+- Added unit test coverage for the viterbi decoder (#22), the bigram scoring module (#25), the `recover`/`recover_top_n` public API (#26), and the `Rule` trait's default `apply_top_n` implementation (#27)
+
 ## [1.0.4] - 2026-07-25
 
 ### Changed
