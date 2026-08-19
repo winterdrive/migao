@@ -26,6 +26,38 @@ fn parse_tsv_into(src: &str, entries: &mut HashMap<String, Vec<(String, u32)>>) 
     }
 }
 
+/// Modernise archaic 喫 → 吃 for all dictionary entries, in place.
+///
+/// bopomofo.tsv was built from a corpus with high 喫 frequency; in modern
+/// Traditional Chinese (Taiwan), 吃 is the standard character. We inject
+/// 吃-variants at very high frequency so they outrank the 喫 originals.
+///
+/// Some keys (e.g. ㄔ) already carry both 吃 and 喫 as separate entries; for
+/// those we bump the existing 吃 entry's frequency instead of pushing a
+/// duplicate, so n-best candidate lists don't surface the same word twice.
+fn modernise_archaic_chi(entries: &mut HashMap<String, Vec<(String, u32)>>) {
+    let chi_keys: Vec<(String, String)> = entries
+        .iter()
+        .flat_map(|(key, vals)| {
+            vals.iter().filter_map(|(word, _)| {
+                if word.contains('喫') {
+                    Some((key.clone(), word.replace('喫', "吃")))
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
+    for (key, new_word) in chi_keys {
+        let vals = entries.entry(key).or_default();
+        if let Some(existing) = vals.iter_mut().find(|(w, _)| *w == new_word) {
+            existing.1 = existing.1.max(10_000_000);
+        } else {
+            vals.push((new_word, 10_000_000));
+        }
+    }
+}
+
 impl ZhuyinDict {
     fn load() -> Self {
         let mut entries: HashMap<String, Vec<(String, u32)>> = HashMap::new();
@@ -39,25 +71,7 @@ impl ZhuyinDict {
         if !user_src.is_empty() {
             parse_tsv_into(&user_src, &mut entries);
         }
-        // Modernise archaic 喫 → 吃 for all dictionary entries.
-        // bopomofo.tsv was built from a corpus with high 喫 frequency; in modern
-        // Traditional Chinese (Taiwan), 吃 is the standard character.
-        // We inject 吃-variants at very high frequency so they outrank the 喫 originals.
-        let chi_keys: Vec<(String, String)> = entries
-            .iter()
-            .flat_map(|(key, vals)| {
-                vals.iter().filter_map(|(word, _)| {
-                    if word.contains('喫') {
-                        Some((key.clone(), word.replace('喫', "吃")))
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect();
-        for (key, new_word) in chi_keys {
-            entries.entry(key).or_default().push((new_word, 10_000_000));
-        }
+        modernise_archaic_chi(&mut entries);
         ZhuyinDict { entries }
     }
 
@@ -174,4 +188,42 @@ pub fn to_chinese(syllables: &[String]) -> String {
         })
         .collect();
     viterbi::decode_with_hints(&normalised, &neutral_hints, &dict.entries)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn modernise_chi_bumps_existing_entry_instead_of_duplicating() {
+        let mut entries: HashMap<String, Vec<(String, u32)>> = HashMap::new();
+        entries.insert(
+            "ㄔ".to_string(),
+            vec![("吃".to_string(), 81_500), ("喫".to_string(), 6_560_700)],
+        );
+
+        modernise_archaic_chi(&mut entries);
+
+        let words = &entries["ㄔ"];
+        let chi_matches: Vec<&(String, u32)> = words.iter().filter(|(w, _)| w == "吃").collect();
+        assert_eq!(
+            chi_matches.len(),
+            1,
+            "modernisation must not create a duplicate 吃 entry, got {words:?}"
+        );
+        assert_eq!(chi_matches[0].1, 10_000_000);
+    }
+
+    #[test]
+    fn modernise_chi_adds_new_entry_when_absent() {
+        let mut entries: HashMap<String, Vec<(String, u32)>> = HashMap::new();
+        entries.insert("ㄏㄠˇㄔ".to_string(), vec![("好喫".to_string(), 811_200)]);
+
+        modernise_archaic_chi(&mut entries);
+
+        let words = &entries["ㄏㄠˇㄔ"];
+        assert_eq!(words.len(), 2);
+        assert!(words.iter().any(|(w, f)| w == "好吃" && *f == 10_000_000));
+        assert!(words.iter().any(|(w, f)| w == "好喫" && *f == 811_200));
+    }
 }
