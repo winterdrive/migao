@@ -89,7 +89,7 @@ Right-click for the context menu:
 - **Pause / Resume** — suspend or re-enable the hotkey without exiting
 - **Launch at Login** — toggle Windows auto-start (writes to `HKCU\...\Run`)
 - **Open Migao Command** — open a terminal with `migao status`
-- **Check for Updates** — open the latest GitHub release
+- **Check for Updates** — checks GitHub for a newer release and offers to install it in place (falls back to opening the releases page if the check itself fails); also runs silently once at startup, only prompting if an update is actually available
 - **Report Issue** — open the GitHub issue form
 - **Exit** — unregisters the hotkey and removes the tray icon cleanly
 

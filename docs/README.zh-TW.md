@@ -93,7 +93,7 @@ cargo build --release
 - **Pause / Resume** — 暫停或恢復快捷鍵，不需要退出程式
 - **Launch at Login** — 設定開機自動啟動（寫入 Windows 登錄檔）
 - **Open Migao Command** — 開啟終端機並執行 `migao status`
-- **Check for Updates** — 開啟最新 GitHub release
+- **Check for Updates** — 向 GitHub 查詢是否有新版本，有的話會問要不要直接安裝（查詢本身失敗時退回開啟 releases 頁面）；開機時也會靜默檢查一次，只有真的有新版才會跳出提示
 - **Report Issue** — 開啟 GitHub issue 表單
 - **Exit** — 清理資源後完全退出
 
