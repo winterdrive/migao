@@ -5,9 +5,33 @@ fn should_restore_clipboard_text(current_text: Option<&str>, inserted_text: &str
     current_text == Some(inserted_text)
 }
 
+/// Pulls `tag_name` out of a GitHub "get latest release" API response body,
+/// without pulling in a JSON parsing dependency for one field.
+#[cfg(any(windows, test))]
+fn extract_tag_name(body: &str) -> Option<String> {
+    let key = "\"tag_name\":\"";
+    let start = body.find(key)? + key.len();
+    let end = body[start..].find('"')?;
+    Some(body[start..start + end].to_string())
+}
+
+/// Compares two `X.Y.Z`-style version strings (an optional leading `v` on
+/// either side is ignored). Non-numeric or missing components are treated
+/// as 0, so this is deliberately lenient rather than a full semver parser.
+#[cfg(any(windows, test))]
+fn is_newer_version(latest: &str, current: &str) -> bool {
+    fn parts(v: &str) -> Vec<u32> {
+        v.trim_start_matches('v')
+            .split('.')
+            .map(|p| p.parse().unwrap_or(0))
+            .collect()
+    }
+    parts(latest) > parts(current)
+}
+
 #[cfg(test)]
 mod tests {
-    use super::should_restore_clipboard_text;
+    use super::{extract_tag_name, is_newer_version, should_restore_clipboard_text};
 
     #[test]
     fn restores_only_when_clipboard_still_contains_inserted_text() {
@@ -17,6 +41,32 @@ mod tests {
             "你好"
         ));
         assert!(!should_restore_clipboard_text(None, "你好"));
+    }
+
+    #[test]
+    fn extracts_tag_name_from_github_release_response() {
+        let body = r#"{"url":"...","tag_name":"v1.0.5","name":"v1.0.5","draft":false}"#;
+        assert_eq!(extract_tag_name(body).as_deref(), Some("v1.0.5"));
+    }
+
+    #[test]
+    fn extract_tag_name_returns_none_when_field_missing() {
+        assert_eq!(extract_tag_name(r#"{"message":"Not Found"}"#), None);
+    }
+
+    #[test]
+    fn detects_newer_patch_and_minor_versions() {
+        assert!(is_newer_version("v1.0.5", "1.0.4"));
+        assert!(is_newer_version("1.1.0", "v1.0.9"));
+        assert!(!is_newer_version("1.0.4", "1.0.4"));
+        assert!(!is_newer_version("1.0.3", "1.0.4"));
+    }
+
+    #[test]
+    fn version_compare_treats_numeric_components_not_strings() {
+        // "10" > "9" numerically, but "10" < "9" lexicographically — this
+        // guards against a naive string-compare implementation regressing in.
+        assert!(is_newer_version("1.0.10", "1.0.9"));
     }
 }
 
@@ -30,7 +80,9 @@ mod tests {
 /// Tray icon (right-click): Pause / Resume · Exit
 #[cfg(windows)]
 mod win {
+    use std::ffi::OsStr;
     use std::mem;
+    use std::os::windows::ffi::OsStrExt;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::sync::{mpsc, Arc, Mutex};
     use std::thread;
@@ -45,11 +97,14 @@ mod win {
     use winapi::um::wincon::{CTRL_BREAK_EVENT, CTRL_CLOSE_EVENT, CTRL_C_EVENT};
     use winapi::um::winuser::{
         DispatchMessageW, GetAsyncKeyState, GetClassNameW, GetForegroundWindow, GetKeyboardLayout,
-        GetKeyboardLayoutList, GetMessageW, GetWindowThreadProcessId, KillTimer, PostMessageW,
-        PostThreadMessageW, RegisterHotKey, SendInput, SendMessageTimeoutW, SetTimer,
-        UnregisterHotKey, INPUT, KEYBDINPUT, KEYEVENTF_KEYUP, MOD_ALT, MOD_CONTROL, MSG,
-        SMTO_ABORTIFHUNG, WM_APP, WM_HOTKEY, WM_INPUTLANGCHANGEREQUEST, WM_QUIT, WM_TIMER,
+        GetKeyboardLayoutList, GetMessageW, GetWindowThreadProcessId, KillTimer, MessageBoxW,
+        PostMessageW, PostThreadMessageW, RegisterHotKey, SendInput, SendMessageTimeoutW, SetTimer,
+        UnregisterHotKey, IDYES, INPUT, KEYBDINPUT, KEYEVENTF_KEYUP, MB_ICONINFORMATION,
+        MB_ICONQUESTION, MB_OK, MB_YESNO, MOD_ALT, MOD_CONTROL, MSG, SMTO_ABORTIFHUNG, WM_APP,
+        WM_HOTKEY, WM_INPUTLANGCHANGEREQUEST, WM_QUIT, WM_TIMER,
     };
+
+    use super::{extract_tag_name, is_newer_version};
 
     #[link(name = "imm32")]
     extern "system" {
@@ -518,6 +573,105 @@ mod win {
         }
     }
 
+    // ── Update check ─────────────────────────────────────────────────────────
+
+    fn to_wide(s: &str) -> Vec<u16> {
+        OsStr::new(s).encode_wide().chain(Some(0)).collect()
+    }
+
+    /// Shows a blocking Win32 message box. Safe to call from any thread —
+    /// MessageBoxW pumps its own message loop for the dialog and doesn't
+    /// require the caller to be the main UI thread.
+    fn message_box(text: &str, caption: &str, flags: u32) -> i32 {
+        let text_w = to_wide(text);
+        let caption_w = to_wide(caption);
+        unsafe {
+            MessageBoxW(
+                std::ptr::null_mut(),
+                text_w.as_ptr(),
+                caption_w.as_ptr(),
+                flags,
+            )
+        }
+    }
+
+    /// Overall request timeout (connect + read). Without this, a connection
+    /// that's accepted but never responds (some captive portals / firewalls)
+    /// can hang far longer than ureq's 30s default *connect*-only timeout,
+    /// since there's no default read timeout at all.
+    const UPDATE_CHECK_TIMEOUT: Duration = Duration::from_secs(5);
+
+    fn fetch_latest_version() -> Result<String, String> {
+        let body = ureq::get("https://api.github.com/repos/winterdrive/migao/releases/latest")
+            .set("User-Agent", "migao-watch")
+            .timeout(UPDATE_CHECK_TIMEOUT)
+            .call()
+            .map_err(|e| e.to_string())?
+            .into_string()
+            .map_err(|e| e.to_string())?;
+        extract_tag_name(&body).ok_or_else(|| "missing tag_name in response".to_string())
+    }
+
+    fn launch_installer() {
+        std::process::Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                "irm https://raw.githubusercontent.com/winterdrive/migao/main/install.ps1 | iex",
+            ])
+            .spawn()
+            .ok();
+    }
+
+    fn open_releases_page() {
+        std::process::Command::new("cmd")
+            .args([
+                "/c",
+                "start",
+                "",
+                "https://github.com/winterdrive/migao/releases/latest",
+            ])
+            .spawn()
+            .ok();
+    }
+
+    /// Checks GitHub for a newer release in a background thread.
+    ///
+    /// `notify_if_current`: whether to show a message box when already on
+    /// the latest version (or when the check itself fails). The startup
+    /// check passes `false` so a normal launch stays silent; the
+    /// user-initiated tray menu click passes `true` so the click always
+    /// gets visible feedback.
+    fn check_for_update(notify_if_current: bool) {
+        thread::spawn(move || match fetch_latest_version() {
+            Ok(latest) => {
+                let current = env!("CARGO_PKG_VERSION");
+                if is_newer_version(&latest, current) {
+                    let msg = format!("有新版本可用：v{current} → v{latest}\n\n是否立即更新？");
+                    let choice = message_box(&msg, "Migao 更新", MB_YESNO | MB_ICONQUESTION);
+                    if choice == IDYES {
+                        launch_installer();
+                    }
+                } else if notify_if_current {
+                    message_box(
+                        &format!("目前已是最新版本（v{current}）。"),
+                        "Migao 更新",
+                        MB_OK | MB_ICONINFORMATION,
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!("migao-watch: update check failed: {e}");
+                if notify_if_current {
+                    // Manual click that couldn't reach GitHub — fall back to
+                    // the old behavior instead of leaving the user with
+                    // silence, since they explicitly asked to check.
+                    open_releases_page();
+                }
+            }
+        });
+    }
+
     // ── Entry point ──────────────────────────────────────────────────────────
 
     pub fn run() {
@@ -578,6 +732,10 @@ mod win {
             .with_menu(Box::new(menu))
             .build()
             .expect("failed to create tray icon");
+
+        // Silent startup check: only surfaces a prompt if a newer version
+        // exists, never nags on every launch when already up to date.
+        check_for_update(false);
 
         let pause_id = pause_item.id().clone();
         let login_id = login_item.id().clone();
@@ -687,15 +845,7 @@ mod win {
                     if event.id == exit_id {
                         should_quit = true;
                     } else if event.id == update_id {
-                        std::process::Command::new("cmd")
-                            .args([
-                                "/c",
-                                "start",
-                                "",
-                                "https://github.com/winterdrive/migao/releases/latest",
-                            ])
-                            .spawn()
-                            .ok();
+                        check_for_update(true);
                     } else if event.id == report_id {
                         std::process::Command::new("cmd")
                             .args([

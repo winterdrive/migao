@@ -40,3 +40,4 @@ winapi = { version = "0.3", features = ["winuser", "wingdi", "winbase", "winnt",
 tray-icon = { version = "0.24.0", default-features = false }
 winreg = "0.56.0"
 image = { version = "0.25", default-features = false, features = ["png"] }
+ureq = "2"
