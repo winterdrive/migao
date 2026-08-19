@@ -924,6 +924,46 @@ mod win {
         drop(tray);
         eprintln!("migao-watch: stopped.");
     }
+
+    #[cfg(test)]
+    mod truncate_tests {
+        use super::truncate;
+
+        #[test]
+        fn shorter_than_limit_is_unchanged() {
+            assert_eq!(truncate("hi", 25), "hi");
+        }
+
+        #[test]
+        fn exact_length_is_unchanged() {
+            assert_eq!(truncate("hello", 5), "hello");
+        }
+
+        #[test]
+        fn longer_than_limit_gets_ellipsis() {
+            assert_eq!(truncate("hello world", 5), "hello…");
+        }
+
+        #[test]
+        fn counts_chars_not_bytes_for_multibyte_text() {
+            // 6 CJK chars, well under the tray tooltip's 25-char limit — must
+            // not be truncated mid-character (each char is 3 bytes in UTF-8).
+            assert_eq!(truncate("你好嗎我很好", 25), "你好嗎我很好");
+            // Truncating at 3 chars must cut on a char boundary, not a byte
+            // boundary, or this would panic on a non-UTF8-boundary slice.
+            assert_eq!(truncate("你好嗎我很好", 3), "你好嗎…");
+        }
+
+        #[test]
+        fn zero_limit_yields_bare_ellipsis_for_nonempty_input() {
+            assert_eq!(truncate("hi", 0), "…");
+        }
+
+        #[test]
+        fn empty_input_is_unchanged() {
+            assert_eq!(truncate("", 25), "");
+        }
+    }
 }
 
 #[cfg(windows)]
