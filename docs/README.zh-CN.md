@@ -98,6 +98,7 @@ migao config                 # 显示目前设定
 migao config set hotkey Ctrl+Alt+K
 migao watch autostart on     # 开启开机自启
 migao watch autostart off    # 关闭开机自启
+migao report "1p4w1" "版本"  # 回报 Migao 修正错误的案例
 ```
 
 快捷键设定目前支援 `Ctrl+Alt+<A-Z>`，Windows 上会储存在 `%APPDATA%\Migao\config.toml`。
