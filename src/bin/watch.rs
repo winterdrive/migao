@@ -15,6 +15,16 @@ fn extract_tag_name(body: &str) -> Option<String> {
     Some(body[start..start + end].to_string())
 }
 
+/// Extracts the *bare* version number (no leading `v`) from a GitHub "get
+/// latest release" API response body. `current` (from `CARGO_PKG_VERSION`)
+/// never has a `v` prefix, so anything that later formats "v{version}" for
+/// display needs this, not the raw tag name — GitHub tags are `v1.0.6`, and
+/// formatting that as "v{tag}" doubles up into "vv1.0.6".
+#[cfg(any(windows, test))]
+fn extract_bare_version(body: &str) -> Option<String> {
+    extract_tag_name(body).map(|tag| tag.trim_start_matches('v').to_string())
+}
+
 /// Compares two `X.Y.Z`-style version strings (an optional leading `v` on
 /// either side is ignored). Non-numeric or missing components are treated
 /// as 0, so this is deliberately lenient rather than a full semver parser.
@@ -31,7 +41,9 @@ fn is_newer_version(latest: &str, current: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_tag_name, is_newer_version, should_restore_clipboard_text};
+    use super::{
+        extract_bare_version, extract_tag_name, is_newer_version, should_restore_clipboard_text,
+    };
 
     #[test]
     fn restores_only_when_clipboard_still_contains_inserted_text() {
@@ -52,6 +64,14 @@ mod tests {
     #[test]
     fn extract_tag_name_returns_none_when_field_missing() {
         assert_eq!(extract_tag_name(r#"{"message":"Not Found"}"#), None);
+    }
+
+    #[test]
+    fn extract_bare_version_strips_the_v_prefix() {
+        // Regression: GitHub tags are "v1.0.6"; formatting that directly as
+        // "v{version}" for display previously doubled up into "vv1.0.6".
+        let body = r#"{"tag_name":"v1.0.6"}"#;
+        assert_eq!(extract_bare_version(body).as_deref(), Some("1.0.6"));
     }
 
     #[test]
@@ -104,7 +124,7 @@ mod win {
         WM_HOTKEY, WM_INPUTLANGCHANGEREQUEST, WM_QUIT, WM_TIMER,
     };
 
-    use super::{extract_tag_name, is_newer_version};
+    use super::{extract_bare_version, is_newer_version};
 
     #[link(name = "imm32")]
     extern "system" {
@@ -601,6 +621,10 @@ mod win {
     /// since there's no default read timeout at all.
     const UPDATE_CHECK_TIMEOUT: Duration = Duration::from_secs(5);
 
+    /// Returns the latest release's bare version number (no leading `v`) —
+    /// GitHub tag names are `v1.0.6`, but `current` (from `CARGO_PKG_VERSION`)
+    /// never has the prefix, so callers formatting "v{latest}" would
+    /// otherwise double up into "vv1.0.6".
     fn fetch_latest_version() -> Result<String, String> {
         let body = ureq::get("https://api.github.com/repos/winterdrive/migao/releases/latest")
             .set("User-Agent", "migao-watch")
@@ -609,7 +633,7 @@ mod win {
             .map_err(|e| e.to_string())?
             .into_string()
             .map_err(|e| e.to_string())?;
-        extract_tag_name(&body).ok_or_else(|| "missing tag_name in response".to_string())
+        extract_bare_version(&body).ok_or_else(|| "missing tag_name in response".to_string())
     }
 
     fn launch_installer() {
