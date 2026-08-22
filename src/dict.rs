@@ -226,4 +226,39 @@ mod tests {
         assert!(words.iter().any(|(w, f)| w == "好吃" && *f == 10_000_000));
         assert!(words.iter().any(|(w, f)| w == "好喫" && *f == 811_200));
     }
+
+    #[test]
+    fn lookup_returns_highest_freq_word_for_known_key() {
+        // ㄋㄧˇ has many homophones in bopomofo.tsv; 你 is by far the most frequent.
+        assert_eq!(global().lookup("ㄋㄧˇ"), Some("你"));
+    }
+
+    #[test]
+    fn lookup_unknown_key_returns_none() {
+        assert_eq!(global().lookup("ㄅㄆㄇㄈㄉㄊㄋㄌ"), None);
+    }
+
+    #[test]
+    fn lookup_with_freq_returns_frequency_alongside_word() {
+        let (word, freq) = global().lookup_with_freq("ㄋㄧˇ").unwrap();
+        assert_eq!(word, "你");
+        assert!(freq > 0);
+    }
+
+    #[test]
+    fn lookup_neutral_tone_falls_back_to_falling_tone_entry() {
+        // "ㄍㄜ˙" has no direct entry, but pypinyin stores 個 under the base
+        // (falling) tone "ㄍㄜˋ" — lookup_with_freq must fall back to it.
+        assert_eq!(global().lookup("ㄍㄜ˙"), Some("個"));
+    }
+
+    #[test]
+    fn to_chinese_candidates_zero_n_returns_empty() {
+        assert!(to_chinese_candidates(0, &["ㄋㄧˇ".to_string()]).is_empty());
+    }
+
+    #[test]
+    fn to_chinese_empty_syllables_returns_empty_string() {
+        assert_eq!(to_chinese(&[]), "");
+    }
 }
