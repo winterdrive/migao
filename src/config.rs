@@ -61,7 +61,14 @@ pub fn load() -> Config {
     let Ok(raw) = std::fs::read_to_string(path) else {
         return Config::default();
     };
+    parse_config(&raw)
+}
 
+/// Parse a `key = "value"` config file body into a `Config`, starting from
+/// defaults. Unknown keys, blank lines, `#` comments, and lines without `=`
+/// are silently ignored so a hand-edited or partially-written file degrades
+/// gracefully instead of failing to load.
+fn parse_config(raw: &str) -> Config {
     let mut cfg = Config::default();
     for line in raw.lines() {
         let line = line.trim();
@@ -209,7 +216,45 @@ pub fn set_autostart_enabled(enable: bool) -> std::io::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_hotkey, DEFAULT_HOTKEY};
+    use super::{parse_config, parse_hotkey, Config, DEFAULT_HOTKEY, DEFAULT_IME};
+
+    #[test]
+    fn parse_config_reads_known_keys() {
+        let cfg = parse_config("hotkey = \"Ctrl+Alt+K\"\ndefault_ime = \"pinyin\"\n");
+        assert_eq!(cfg.hotkey, "Ctrl+Alt+K");
+        assert_eq!(cfg.default_ime, "pinyin");
+    }
+
+    #[test]
+    fn parse_config_ignores_blank_lines_and_comments() {
+        let cfg = parse_config("\n# a comment\n  \nhotkey = \"Ctrl+Alt+Z\"\n");
+        assert_eq!(cfg.hotkey, "Ctrl+Alt+Z");
+    }
+
+    #[test]
+    fn parse_config_ignores_lines_without_equals() {
+        let cfg = parse_config("this line has no equals sign\nhotkey = \"Ctrl+Alt+Z\"\n");
+        assert_eq!(cfg.hotkey, "Ctrl+Alt+Z");
+    }
+
+    #[test]
+    fn parse_config_ignores_unknown_keys() {
+        let cfg = parse_config("mystery_key = \"whatever\"\n");
+        assert_eq!(cfg, Config::default());
+    }
+
+    #[test]
+    fn parse_config_empty_input_returns_defaults() {
+        assert_eq!(parse_config(""), Config::default());
+        assert_eq!(parse_config("").hotkey, DEFAULT_HOTKEY);
+        assert_eq!(parse_config("").default_ime, DEFAULT_IME);
+    }
+
+    #[test]
+    fn parse_config_trims_whitespace_around_key_and_value() {
+        let cfg = parse_config("  hotkey   =   \"Ctrl+Alt+Q\"  \n");
+        assert_eq!(cfg.hotkey, "Ctrl+Alt+Q");
+    }
 
     #[test]
     fn parses_ctrl_alt_letter_hotkey() {
