@@ -115,7 +115,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 None => {
                     let mut s = String::new();
                     io::stdin().read_to_string(&mut s)?;
-                    s.trim_end_matches('\n').to_string()
+                    strip_trailing_newline(&s).to_string()
                 }
             };
 
@@ -297,4 +297,43 @@ fn config_path_display() -> String {
     migao::config::config_path()
         .map(|path| path.display().to_string())
         .unwrap_or_else(|| "(unavailable)".to_string())
+}
+
+/// Strips a single trailing line ending (`\n` or `\r\n`) from stdin input.
+///
+/// `String::trim_end_matches('\n')` alone leaves a stray `\r` behind on
+/// Windows, where piped input (e.g. from `cmd.exe`) is usually `\r\n`-terminated;
+/// that stray `\r` would otherwise pass through as garbage into the recovery pipeline.
+fn strip_trailing_newline(s: &str) -> &str {
+    s.trim_end_matches(['\r', '\n'])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn strips_lf() {
+        assert_eq!(strip_trailing_newline("su3cl3\n"), "su3cl3");
+    }
+
+    #[test]
+    fn strips_crlf() {
+        assert_eq!(strip_trailing_newline("su3cl3\r\n"), "su3cl3");
+    }
+
+    #[test]
+    fn strips_multiple_trailing_newlines() {
+        assert_eq!(strip_trailing_newline("su3cl3\r\n\r\n"), "su3cl3");
+    }
+
+    #[test]
+    fn leaves_input_without_trailing_newline_untouched() {
+        assert_eq!(strip_trailing_newline("su3cl3"), "su3cl3");
+    }
+
+    #[test]
+    fn does_not_strip_internal_carriage_returns() {
+        assert_eq!(strip_trailing_newline("su3\rcl3\n"), "su3\rcl3");
+    }
 }
