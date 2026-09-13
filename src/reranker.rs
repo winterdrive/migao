@@ -142,29 +142,49 @@ impl Reranker {
         const MIN_RERANK_MARGIN: f32 = 0.40;
 
         let viterbi_top = candidates[0].clone();
-        let mut scored: Vec<(f32, String)> =
+        let scored: Vec<(f32, String)> =
             candidates.drain(..).map(|c| (self.score(&c), c)).collect();
 
-        // Score of Viterbi's top candidate (might have been scored already above).
-        let viterbi_score = scored
-            .iter()
-            .find(|(_, s)| *s == viterbi_top)
-            .map(|(sc, _)| *sc)
-            .unwrap_or(f32::MAX);
-
-        scored.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-
-        // If BERT prefers a different candidate but the margin is below threshold,
-        // reinstate Viterbi's top-1 at position 0.
-        if scored[0].1 != viterbi_top && viterbi_score - scored[0].0 < MIN_RERANK_MARGIN {
-            if let Some(pos) = scored.iter().position(|(_, s)| *s == viterbi_top) {
-                let entry = scored.remove(pos);
-                scored.insert(0, entry);
-            }
-        }
-
-        scored.into_iter().map(|(_, s)| s).collect()
+        apply_rerank_margin(scored, &viterbi_top, MIN_RERANK_MARGIN)
+            .into_iter()
+            .map(|(_, s)| s)
+            .collect()
     }
+}
+
+/// Sort `scored` best-first (lowest PLH score), then reinstate `viterbi_top` at
+/// position 0 if BERT's pick differs from it but beats it by less than `margin`.
+///
+/// Split out from `rerank` so this decision can be unit-tested directly, without
+/// a loaded ONNX model to produce scores.
+fn apply_rerank_margin(
+    mut scored: Vec<(f32, String)>,
+    viterbi_top: &str,
+    margin: f32,
+) -> Vec<(f32, String)> {
+    if scored.is_empty() {
+        return scored;
+    }
+
+    // Score of Viterbi's top candidate (might have been scored already above).
+    let viterbi_score = scored
+        .iter()
+        .find(|(_, s)| s == viterbi_top)
+        .map(|(sc, _)| *sc)
+        .unwrap_or(f32::MAX);
+
+    scored.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    // If BERT prefers a different candidate but the margin is below threshold,
+    // reinstate Viterbi's top-1 at position 0.
+    if scored[0].1 != viterbi_top && viterbi_score - scored[0].0 < margin {
+        if let Some(pos) = scored.iter().position(|(_, s)| s == viterbi_top) {
+            let entry = scored.remove(pos);
+            scored.insert(0, entry);
+        }
+    }
+
+    scored
 }
 
 /// Global lazy-initialised reranker. Returns None if model files are absent.
@@ -210,5 +230,46 @@ mod tests {
         let lower = masked_log_prob(&row, 0);
         assert!(score > lower);
         assert!(score <= 0.0);
+    }
+
+    fn scored(pairs: &[(f32, &str)]) -> Vec<(f32, String)> {
+        pairs.iter().map(|(sc, s)| (*sc, s.to_string())).collect()
+    }
+
+    #[test]
+    fn margin_empty_input_returns_empty() {
+        assert!(apply_rerank_margin(Vec::new(), "遍", 0.40).is_empty());
+    }
+
+    #[test]
+    fn margin_keeps_bert_pick_when_improvement_exceeds_margin() {
+        // BERT's top pick beats Viterbi's by 0.6 (> 0.40 margin): trust BERT.
+        let input = scored(&[(1.0, "遍"), (0.4, "變")]);
+        let result = apply_rerank_margin(input, "遍", 0.40);
+        assert_eq!(result[0].1, "變");
+    }
+
+    #[test]
+    fn margin_reinstates_viterbi_top_when_improvement_below_margin() {
+        // BERT prefers "變" but only by 0.2 (< 0.40 margin): keep Viterbi's "遍".
+        let input = scored(&[(1.0, "遍"), (0.8, "變")]);
+        let result = apply_rerank_margin(input, "遍", 0.40);
+        assert_eq!(result[0].1, "遍");
+    }
+
+    #[test]
+    fn margin_noop_when_bert_already_agrees_with_viterbi() {
+        let input = scored(&[(0.5, "你好"), (1.2, "尼好")]);
+        let result = apply_rerank_margin(input, "你好", 0.40);
+        assert_eq!(result[0].1, "你好");
+    }
+
+    #[test]
+    fn margin_reinstate_falls_back_to_bert_order_when_viterbi_top_unscored() {
+        // viterbi_top isn't among the scored candidates (e.g. displaced upstream):
+        // there's nothing to reinstate, so BERT's sorted order is used as-is.
+        let input = scored(&[(1.0, "甲"), (0.5, "乙")]);
+        let result = apply_rerank_margin(input, "丙", 0.40);
+        assert_eq!(result[0].1, "乙");
     }
 }
