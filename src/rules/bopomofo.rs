@@ -82,10 +82,15 @@ impl Rule for BopomofoDaqianRule {
         let segments = daqian::segment(input);
 
         // Top-N only works cleanly on continuous phonetic runs; degrade for mixed content.
-        let has_passthrough = segments
-            .iter()
-            .any(|s| matches!(s, Segment::Passthrough(_)));
-        if has_passthrough {
+        // A structurally invalid Syllable segment (e.g. accumulated English-like keys)
+        // is not a Passthrough, but apply() still emits its raw keys as literal text —
+        // so it must also trigger the degrade path, or the filter_map below would
+        // silently drop that text instead of preserving it like apply() does.
+        let has_mixed_content = segments.iter().any(|s| match s {
+            Segment::Passthrough(_) => true,
+            Segment::Syllable(keys) => !daqian::is_valid_syllable(keys),
+        });
+        if has_mixed_content {
             return self.apply(input).into_iter().collect();
         }
 
@@ -93,11 +98,9 @@ impl Rule for BopomofoDaqianRule {
             .iter()
             .filter_map(|s| {
                 if let Segment::Syllable(keys) = s {
-                    if daqian::is_valid_syllable(keys) {
-                        let z = daqian::keys_to_bopomofo(keys);
-                        if !z.is_empty() {
-                            return Some(z);
-                        }
+                    let z = daqian::keys_to_bopomofo(keys);
+                    if !z.is_empty() {
+                        return Some(z);
                     }
                 }
                 None
@@ -394,6 +397,17 @@ mod tests {
     fn test_ssot_passthrough() {
         // 這是SSOT嗎? — ASCII passthrough in the middle of Chinese
         assert_eq!(rule().apply("5k4g4SSOTa87?"), Some("這是SSOT嗎?".into()));
+    }
+
+    #[test]
+    fn test_apply_top_n_preserves_trailing_invalid_syllable() {
+        // "xyz" (x, y, z all Initial keys) accumulates as one structurally
+        // invalid Segment::Syllable, not a Segment::Passthrough. apply_top_n
+        // must still degrade to apply() here, matching its "你好xyz" output,
+        // instead of silently dropping the "xyz" suffix.
+        let input = "su3cl3xyz";
+        let expected: Vec<String> = rule().apply(input).into_iter().collect();
+        assert_eq!(rule().apply_top_n(input, 3), expected);
     }
 
     #[test]
