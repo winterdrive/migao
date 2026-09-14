@@ -48,11 +48,23 @@ pub fn log_count(a: char, b: char) -> f32 {
 }
 
 /// True for CJK Unified Ideographs (excludes Bopomofo, ASCII, etc.).
+///
+/// Includes the supplementary-plane extensions (B–G) alongside the BMP ranges:
+/// without them, rare characters outside the BMP (e.g. 𧋲, U+27332) are silently
+/// treated as non-CJK and never receive a bigram bonus even when the adjacent
+/// pair is present in the bundled bigram table.
 pub fn is_cjk(c: char) -> bool {
     matches!(c,
-        '\u{4E00}'..='\u{9FFF}'   // CJK Unified Ideographs
-        | '\u{3400}'..='\u{4DBF}' // Extension A
-        | '\u{F900}'..='\u{FAFF}' // CJK Compatibility Ideographs
+        '\u{4E00}'..='\u{9FFF}'     // CJK Unified Ideographs
+        | '\u{3400}'..='\u{4DBF}'   // Extension A
+        | '\u{F900}'..='\u{FAFF}'   // CJK Compatibility Ideographs
+        | '\u{20000}'..='\u{2A6DF}' // Extension B
+        | '\u{2A700}'..='\u{2B73F}' // Extension C
+        | '\u{2B740}'..='\u{2B81F}' // Extension D
+        | '\u{2B820}'..='\u{2CEAF}' // Extension E
+        | '\u{2CEB0}'..='\u{2EBEF}' // Extension F
+        | '\u{2F800}'..='\u{2FA1F}' // Compatibility Ideographs Supplement
+        | '\u{30000}'..='\u{3134F}' // Extension G
     )
 }
 
@@ -92,5 +104,18 @@ mod tests {
         assert!(!is_cjk('a'));
         assert!(!is_cjk('1'));
         assert!(!is_cjk('ㄅ')); // Bopomofo, explicitly excluded
+    }
+
+    #[test]
+    fn test_is_cjk_true_for_supplementary_plane() {
+        // 𧋲 (U+27332), the rare Extension-B character referenced in
+        // rules/bopomofo.rs's regression test, must count as CJK for bigram scoring.
+        assert!(is_cjk('\u{27332}'));
+    }
+
+    #[test]
+    fn test_is_cjk_false_for_non_cjk_supplementary_plane() {
+        // Emoji live outside every CJK extension block.
+        assert!(!is_cjk('\u{1F600}'));
     }
 }
