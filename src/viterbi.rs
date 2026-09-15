@@ -47,15 +47,22 @@ fn strip_tone(syl: &str) -> &str {
     syl
 }
 
+/// One DP backpointer: `(span_len, dict_key, word)`.
+///
+/// `dict_key` is the dictionary key that was actually matched, which for
+/// neutral-tone-hinted spans differs from the raw syllable concatenation —
+/// see the tone-variant lookup in `run_dp` below.
+type BackPointer = (usize, String, String);
+
 /// Run the Viterbi DP and return the raw `(dp, back)` arrays.
 fn run_dp(
     syllables: &[String],
     neutral_hints: &[bool],
     dict: &HashMap<String, Vec<(String, u32)>>,
-) -> (Vec<f32>, Vec<Option<(usize, String)>>) {
+) -> (Vec<f32>, Vec<Option<BackPointer>>) {
     let n = syllables.len();
     let mut dp = vec![f32::NEG_INFINITY; n + 1];
-    let mut back: Vec<Option<(usize, String)>> = vec![None; n + 1];
+    let mut back: Vec<Option<BackPointer>> = vec![None; n + 1];
     dp[0] = 0.0;
 
     for i in 1..=n {
@@ -65,7 +72,7 @@ fn run_dp(
                 continue;
             }
             let key: String = syllables[i - len..i].concat();
-            let mut found = best_entry(dict, &key).map(|(w, f)| (w.to_string(), f));
+            let mut found = best_entry(dict, &key).map(|(w, f)| (key.clone(), w.to_string(), f));
 
             // For neutral-tone-origin syllables, also try ˊ / ˇ / ˉ tone variants
             // on the last syllable of the span (e.g. 覺得 stored as ˊ, typed as ˙→ˋ).
@@ -76,13 +83,13 @@ fn run_dp(
                 'alt: for tone in ["ˊ", "ˇ", "ˉ"] {
                     let alt = format!("{prefix}{stem}{tone}");
                     if let Some((w, f)) = best_entry(dict, &alt) {
-                        found = Some((w.to_string(), f));
+                        found = Some((alt, w.to_string(), f));
                         break 'alt;
                     }
                 }
             }
 
-            if let Some((word, freq)) = found {
+            if let Some((dict_key, word, freq)) = found {
                 let bonus = if len > 1 {
                     (len - 1) as f32 * COMPOUND_BONUS
                 } else {
@@ -91,7 +98,7 @@ fn run_dp(
                 let bigram_bonus = if i > len {
                     back[i - len]
                         .as_ref()
-                        .and_then(|(_, prev_word)| {
+                        .and_then(|(_, _, prev_word)| {
                             let prev_last = prev_word.chars().last()?;
                             let curr_first = word.chars().next()?;
                             if bigram::is_cjk(prev_last) && bigram::is_cjk(curr_first) {
@@ -107,14 +114,14 @@ fn run_dp(
                 let score = prev + (freq as f32).ln() + bonus + bigram_bonus;
                 if score > dp[i] {
                     dp[i] = score;
-                    back[i] = Some((len, word));
+                    back[i] = Some((len, dict_key, word));
                 }
             }
         }
         // Fallback: emit raw syllable key with a penalty when no dict entry exists.
         if back[i].is_none() && dp[i - 1] != f32::NEG_INFINITY {
             dp[i] = dp[i - 1] - 10.0;
-            back[i] = Some((1, syllables[i - 1].clone()));
+            back[i] = Some((1, syllables[i - 1].clone(), syllables[i - 1].clone()));
         }
     }
 
@@ -122,14 +129,14 @@ fn run_dp(
 }
 
 /// Reconstruct the path from the backpointer array.
-/// Returns `Vec<(start_syllable_idx, span_len, word)>` in forward order.
-fn collect_path(back: &mut [Option<(usize, String)>], n: usize) -> Vec<(usize, usize, String)> {
+/// Returns `Vec<(start_syllable_idx, span_len, dict_key, word)>` in forward order.
+fn collect_path(back: &mut [Option<BackPointer>], n: usize) -> Vec<(usize, usize, String, String)> {
     let mut path = Vec::new();
     let mut i = n;
     while i > 0 {
         match back[i].take() {
-            Some((len, word)) => {
-                path.push((i - len, len, word));
+            Some((len, dict_key, word)) => {
+                path.push((i - len, len, dict_key, word));
                 i -= len;
             }
             None => break,
@@ -167,7 +174,7 @@ fn decode_impl(
     }
     let (_, mut back) = run_dp(syllables, neutral_hints, dict);
     let path = collect_path(&mut back, syllables.len());
-    path.iter().map(|(_, _, w)| w.as_str()).collect()
+    path.iter().map(|(_, _, _, w)| w.as_str()).collect()
 }
 
 /// Return up to `n` candidate Chinese strings for the given phonetic syllable sequence.
@@ -189,16 +196,17 @@ pub fn decode_candidates(
     let total_score = dp[syllables.len()];
     let path = collect_path(&mut back, syllables.len());
 
-    let best: String = path.iter().map(|(_, _, w)| w.as_str()).collect();
+    let best: String = path.iter().map(|(_, _, _, w)| w.as_str()).collect();
     if n == 1 {
         return vec![best];
     }
 
     let mut candidates: Vec<(f32, String)> = vec![(total_score, best)];
 
-    for (seg_idx, (seg_start, seg_len, seg_word)) in path.iter().enumerate() {
-        let key: String = syllables[*seg_start..*seg_start + seg_len].concat();
-        let alts = top_entries(dict, &key, 4);
+    for (seg_idx, (_, _, dict_key, seg_word)) in path.iter().enumerate() {
+        // Look up alternatives under the key that actually matched in `run_dp`
+        // (may be a neutral-tone alt key, not the raw syllable concatenation).
+        let alts = top_entries(dict, dict_key, 4);
 
         let orig_freq = alts
             .iter()
@@ -213,7 +221,7 @@ pub fn decode_candidates(
             let alt_text: String = path
                 .iter()
                 .enumerate()
-                .map(|(i, (_, _, w))| if i == seg_idx { *alt_word } else { w.as_str() })
+                .map(|(i, (_, _, _, w))| if i == seg_idx { *alt_word } else { w.as_str() })
                 .collect();
             let score_delta = (*alt_freq as f32).ln() - (orig_freq as f32).ln();
             candidates.push((total_score + score_delta, alt_text));
@@ -318,6 +326,19 @@ mod tests {
             decode_candidates(1, &syllables, &[], &dict),
             vec!["媽".to_string()]
         );
+    }
+
+    #[test]
+    fn test_decode_candidates_neutral_hint_alt_key_offers_alternatives() {
+        // "deˋ" isn't a dict key; the neutral-tone hint resolves it to "deˊ".
+        // Alternatives must be looked up under "deˊ" (the key that actually
+        // matched), not the raw "deˋ" span, or they're silently dropped.
+        let dict = make_dict(&[("deˊ", &[("得", 10), ("的", 3)])]);
+        let syllables = vec!["deˋ".to_string()];
+        let hints = vec![true];
+        assert_eq!(decode_with_hints(&syllables, &hints, &dict), "得");
+        let candidates = decode_candidates(3, &syllables, &hints, &dict);
+        assert_eq!(candidates, vec!["得".to_string(), "的".to_string()]);
     }
 
     #[test]
