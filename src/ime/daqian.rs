@@ -304,4 +304,65 @@ mod tests {
         let segs = segment("sc");
         assert_eq!(segs, vec![Segment::Syllable("sc".into()),]);
     }
+
+    // `is_valid_syllable` gates every Bopomofo recovery path (main.rs's stdin
+    // loop and rules/bopomofo.rs's apply/apply_top_n/confidence), but had no
+    // direct test of its own — only indirect coverage through `segment`.
+
+    #[test]
+    fn test_is_valid_syllable_full_imft() {
+        // su3 = Initial(s) + Medial(u) + Final? ... actually s=Initial,u=Medial,3=Tone (no Final)
+        assert!(is_valid_syllable("su3"));
+    }
+
+    #[test]
+    fn test_is_valid_syllable_initial_only() {
+        // At least one phonetic component with no tone is still valid (tone-1).
+        assert!(is_valid_syllable("s"));
+    }
+
+    #[test]
+    fn test_is_valid_syllable_rejects_tone_only() {
+        // A tone key with no phonetic component has nothing to attach to.
+        assert!(!is_valid_syllable("3"));
+    }
+
+    #[test]
+    fn test_is_valid_syllable_rejects_empty() {
+        assert!(!is_valid_syllable(""));
+    }
+
+    #[test]
+    fn test_is_valid_syllable_rejects_out_of_order() {
+        // Final(i) before Initial(s) violates Initial->Medial->Final->Tone ordering.
+        assert!(!is_valid_syllable("is"));
+    }
+
+    #[test]
+    fn test_is_valid_syllable_rejects_duplicate_category() {
+        // Two Initials in a row: 's' then 'c' are both Initial-category keys.
+        assert!(!is_valid_syllable("sc"));
+    }
+
+    #[test]
+    fn test_is_valid_syllable_rejects_unrecognized_key() {
+        assert!(!is_valid_syllable("s!"));
+    }
+
+    #[test]
+    fn test_is_tone_key() {
+        assert!(is_tone_key('3'));
+        assert!(is_tone_key('4'));
+        assert!(is_tone_key('6'));
+        assert!(is_tone_key('7'));
+        assert!(!is_tone_key(' '));
+        assert!(!is_tone_key('s'));
+    }
+
+    #[test]
+    fn test_is_zhuyin_key() {
+        assert!(is_zhuyin_key('s')); // phonetic key
+        assert!(is_zhuyin_key('3')); // tone key
+        assert!(!is_zhuyin_key('!'));
+    }
 }
