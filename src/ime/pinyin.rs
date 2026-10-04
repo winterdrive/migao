@@ -106,23 +106,19 @@ pub fn segment(input: &str) -> Vec<Segment> {
 ///
 /// Preferred over syllable-ratio because it penalises inputs where most characters
 /// are passthroughs ("hello world" covers 3/11 chars → 0.27).
+///
+/// Apostrophes consumed by `segment` as syllable separators count as covered,
+/// so "xi'an!" scores 5/6 rather than being penalised to 4/6 (below 0.7).
 pub fn confidence(input: &str) -> f32 {
     let total_chars = input.chars().count();
     if total_chars == 0 {
         return 0.0;
     }
-    let segs = segment(input);
-    let covered: usize = segs
+    let passthrough = segment(input)
         .iter()
-        .filter_map(|s| {
-            if let Segment::Syllable(py) = s {
-                Some(py.chars().count())
-            } else {
-                None
-            }
-        })
-        .sum();
-    covered as f32 / total_chars as f32
+        .filter(|s| matches!(s, Segment::Passthrough(_)))
+        .count();
+    (total_chars - passthrough) as f32 / total_chars as f32
 }
 
 #[cfg(test)]
@@ -190,6 +186,19 @@ mod tests {
         // "hello" → he (syl) + ll (pass) + o (syl): 3/5 = 0.6 — borderline
         // below 0.7 threshold used by PinyinRule
         assert!(confidence("world") < 0.5);
+    }
+
+    #[test]
+    fn test_confidence_apostrophe_counts_as_covered() {
+        // Apostrophes are syllable separators, not passthroughs: "xi'an!" must
+        // score 5/6, not 4/6 which falls below PinyinRule's 0.7.
+        assert!((confidence("xi'an") - 1.0).abs() < f32::EPSILON);
+        assert!((confidence("xi'an!") - 5.0 / 6.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_confidence_passthrough_only() {
+        assert_eq!(confidence("!?"), 0.0);
     }
 
     #[test]
