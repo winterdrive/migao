@@ -94,6 +94,13 @@ mod tests {
     }
 
     #[test]
+    fn test_apostrophe_with_punctuation_accepted() {
+        // Apostrophe separators must not drag "xi'an!" below the 0.7 threshold.
+        let out = rule().apply("xi'an!").expect("xi'an! should be recovered");
+        assert!(out.ends_with('!'));
+    }
+
+    #[test]
     fn test_english_rejected() {
         // "hello world" — low char coverage, should be rejected
         assert_eq!(rule().apply("hello world"), None);
