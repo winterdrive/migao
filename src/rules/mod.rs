@@ -30,4 +30,10 @@ mod tests {
         assert!(get_rule("ENGLISH-FROM-BOPOMOFO").is_some());
         assert!(get_rule("reverse").is_some());
     }
+
+    #[test]
+    fn test_unknown_ime_returns_none() {
+        assert!(get_rule("").is_none());
+        assert!(get_rule("not-an-ime").is_none());
+    }
 }
