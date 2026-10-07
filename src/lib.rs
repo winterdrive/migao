@@ -64,4 +64,11 @@ mod tests {
         let candidates = recover_top_n("nihao", "pinyin", 3);
         assert_eq!(candidates, vec!["你好".to_string()]);
     }
+
+    #[test]
+    fn test_recover_documented_bopomofo_aliases() {
+        // The doc comment on `recover` lists "zhuyin" and "注音" as accepted IME names.
+        assert_eq!(recover("su3cl3", "zhuyin"), Some("你好".into()));
+        assert_eq!(recover("su3cl3", "注音"), Some("你好".into()));
+    }
 }
