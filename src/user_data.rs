@@ -3,12 +3,21 @@ use std::path::PathBuf;
 
 /// Returns the path to the user-specific supplement file:
 ///   Windows: %APPDATA%\Migao\user_supplement.tsv
-///   Other:   $HOME/.config/migao/user_supplement.tsv
+///   Other:   $HOME/.config/Migao/user_supplement.tsv
 pub fn user_supplement_path() -> Option<PathBuf> {
-    let base = std::env::var("APPDATA")
+    supplement_path_from(std::env::var("APPDATA").ok(), std::env::var("HOME").ok())
+}
+
+/// Resolves the supplement path from the given `APPDATA` / `HOME` values.
+///
+/// An empty value is treated as unset: joining onto `""` yields a *relative*
+/// path, which would make `append_entry` silently write into the current
+/// working directory instead of the user's data directory.
+fn supplement_path_from(appdata: Option<String>, home: Option<String>) -> Option<PathBuf> {
+    let non_empty = |v: Option<String>| v.filter(|s| !s.is_empty());
+    let base = non_empty(appdata)
         .map(PathBuf::from)
-        .or_else(|_| std::env::var("HOME").map(|h| PathBuf::from(h).join(".config")))
-        .ok()?;
+        .or_else(|| non_empty(home).map(|h| PathBuf::from(h).join(".config")))?;
     Some(base.join("Migao").join("user_supplement.tsv"))
 }
 
@@ -88,5 +97,43 @@ mod tests {
     fn accepts_plain_text() {
         assert!(!has_tsv_delimiter("ㄅㄢˇㄅㄣˇ"));
         assert!(!has_tsv_delimiter("版本"));
+    }
+
+    #[test]
+    fn supplement_path_prefers_appdata() {
+        let p = supplement_path_from(Some("/appdata".into()), Some("/home/u".into())).unwrap();
+        assert_eq!(
+            p,
+            PathBuf::from("/appdata")
+                .join("Migao")
+                .join("user_supplement.tsv")
+        );
+    }
+
+    #[test]
+    fn supplement_path_falls_back_to_home_config() {
+        let p = supplement_path_from(None, Some("/home/u".into())).unwrap();
+        assert_eq!(
+            p,
+            PathBuf::from("/home/u")
+                .join(".config")
+                .join("Migao")
+                .join("user_supplement.tsv")
+        );
+    }
+
+    #[test]
+    fn supplement_path_ignores_empty_appdata() {
+        let p = supplement_path_from(Some(String::new()), Some("/home/u".into())).unwrap();
+        assert!(p.starts_with("/home/u"));
+    }
+
+    #[test]
+    fn supplement_path_none_when_all_empty_or_unset() {
+        assert_eq!(supplement_path_from(None, None), None);
+        assert_eq!(
+            supplement_path_from(Some(String::new()), Some(String::new())),
+            None
+        );
     }
 }
