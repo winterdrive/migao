@@ -82,4 +82,27 @@ mod tests {
     fn test_confidence_pure_bopomofo() {
         assert!((rule().confidence("ㄘㄍㄠㄠㄟ") - 1.0).abs() < f32::EPSILON);
     }
+
+    #[test]
+    fn test_low_confidence_rejected() {
+        // 1 Bopomofo symbol out of 5 chars → 0.2 < 0.3 threshold → None
+        assert_eq!(rule().apply("ㄘ你好世界"), None);
+    }
+
+    #[test]
+    fn test_confidence_threshold_boundary_accepted() {
+        // 3 of 10 chars are Bopomofo → exactly 0.3 passes the `< 0.3` check
+        assert_eq!(rule().apply("ㄘㄍㄠ1234567"), Some("hel1234567".into()));
+    }
+
+    #[test]
+    fn test_non_bopomofo_passes_through() {
+        // Spaces, punctuation and digits are preserved in place.
+        assert_eq!(rule().apply("ㄘㄍ, ㄘㄍ!"), Some("he, he!".into()));
+    }
+
+    #[test]
+    fn test_confidence_empty_is_zero() {
+        assert_eq!(rule().confidence(""), 0.0);
+    }
 }
